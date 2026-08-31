@@ -34,7 +34,9 @@ public class BundledEssential extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        dataStorage.saveAll();
+        if (dataStorage != null) {
+            dataStorage.saveAll();
+        }
         getLogger().info("BundledEssential has been disabled!");
     }
 
