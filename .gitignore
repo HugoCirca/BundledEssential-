@@ -1,0 +1,19 @@
+# Build
+build/
+target/
+*.class
+*.jar
+
+# IDE
+.classpath
+.project
+.settings/
+*.iml
+.idea/
+.vscode/
+
+# Gradle
+.gradle/
+gradle/
+gradlew
+gradlew.bat
