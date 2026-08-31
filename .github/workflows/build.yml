@@ -1,0 +1,63 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with Gradle
+        run: ./gradlew clean build
+
+      - name: Get version
+        id: version
+        run: echo "VERSION=$(grep 'version = ' build.gradle | head -1 | sed "s/.*'\(.*\)'.*/\1/")" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BundledEssential-${{ steps.version.outputs.VERSION }}
+          path: build/libs/BundledEssential-*.jar
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: BundledEssential v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## BundledEssential v${{ steps.version.outputs.VERSION }}
+
+            ### Commands
+            - `/tpa <player>` - Send teleport request
+            - `/tpaccept` - Accept teleport request
+            - `/tpahere <player>` - Request player to teleport to you
+            - `/sethome` - Set your home
+            - `/removehome` - Remove your home
+            - `/home` - Teleport to home
+            - `/back` - Return to death location
+            - `/waypoint` - Open waypoint GUI
+            - `/waypoint new <name>` - Create waypoint
+            - `/waypoint delete <name>` - Delete waypoint
+          files: build/libs/BundledEssential-*.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
