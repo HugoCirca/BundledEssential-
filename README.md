@@ -106,19 +106,9 @@ No manual configuration needed.
 
 ## Permissions
 
-All commands default to **op-only**. To grant access to all players, add to your permissions plugin:
+All commands are **open to everyone by default**. No permissions plugin needed.
 
-```yaml
-bundleessential.*:
-  default: true
-  children:
-    bundleessential.tpa: true
-    bundleessential.home: true
-    bundleessential.back: true
-    bundleessential.waypoint: true
-```
-
-Or grant individual permissions:
+If you want to restrict access, add these permission nodes:
 
 ```yaml
 bundleessential.tpa: true
