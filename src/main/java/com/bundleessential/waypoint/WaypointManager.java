@@ -54,7 +54,7 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
         switch (subCommand) {
             case "new" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cUsage: /waypoint:new <name>");
+                    player.sendMessage("§cUsage: /waypoint new <name>");
                     return true;
                 }
                 String name = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
@@ -62,7 +62,7 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
             }
             case "delete" -> {
                 if (args.length < 2) {
-                    player.sendMessage("§cUsage: /waypoint:delete <name>");
+                    player.sendMessage("§cUsage: /waypoint delete <name>");
                     return true;
                 }
                 String name = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));

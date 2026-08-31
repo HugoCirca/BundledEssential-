@@ -53,22 +53,6 @@ public class BundledEssential extends JavaPlugin {
 
         getCommand("waypoint").setExecutor(waypointManager);
         getCommand("waypoint").setTabCompleter(waypointManager);
-
-        getCommand("bundlehelp").setExecutor((sender, command, label, args) -> {
-            sender.sendMessage("§6§l=== BundledEssential Commands ===");
-            sender.sendMessage("§e/tpa <player> §7- Send teleport request");
-            sender.sendMessage("§e/tpaccept §7- Accept teleport request");
-            sender.sendMessage("§e/tpahere <player> §7- Request player to teleport to you");
-            sender.sendMessage("§e/sethome §7- Set your home");
-            sender.sendMessage("§e/removehome §7- Remove your home");
-            sender.sendMessage("§e/home §7- Teleport to home");
-            sender.sendMessage("§e/back §7- Return to death location");
-            sender.sendMessage("§e/waypoint §7- Open waypoint GUI");
-            sender.sendMessage("§e/waypoint:new <name> §7- Create waypoint");
-            sender.sendMessage("§e/waypoint:delete <name> §7- Delete waypoint");
-            sender.sendMessage("§6§l===============================");
-            return true;
-        });
     }
 
     public static BundledEssential getInstance() {

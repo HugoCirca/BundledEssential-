@@ -30,7 +30,4 @@ commands:
     usage: /back
   waypoint:
     description: Manage waypoints
-    usage: /waypoint
-  bundlehelp:
-    description: Show all bundled commands
-    usage: /bundlehelp
+    usage: /waypoint [new|delete|name]

@@ -13,8 +13,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **TPA** | `/tpa`, `/tpaccept`, `/tpahere` |
 | **Home** | `/sethome`, `/removehome`, `/home` |
 | **Back** | `/back` |
-| **Waypoints** | `/waypoint`, `/waypoint:new`, `/waypoint:delete` |
-| **Help** | `/bundlehelp` |
+| **Waypoints** | `/waypoint` |
 
 ---
 
@@ -55,20 +54,14 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | Command | Description |
 |---------|-------------|
 | `/waypoint` | Open the waypoint GUI |
-| `/waypoint:new <name>` | Create a waypoint at your location |
-| `/waypoint:delete <name>` | Delete a waypoint |
+| `/waypoint new <name>` | Create a waypoint at your location |
+| `/waypoint delete <name>` | Delete a waypoint |
 | `/waypoint <name>` | Teleport to a waypoint by name |
 
 - Maximum of **27 waypoints** per player
 - GUI uses colored wool for occupied slots, gray glass for empty slots
 - Click a waypoint in the GUI to teleport
 - GUI is click-proof and drag-proof (no item theft)
-
-### BundleHelp
-
-| Command | Description |
-|---------|-------------|
-| `/bundlehelp` | Show all available commands |
 
 ---
 
