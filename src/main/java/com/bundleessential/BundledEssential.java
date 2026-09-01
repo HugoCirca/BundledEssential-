@@ -3,6 +3,8 @@ package com.bundleessential;
 import com.bundleessential.back.BackManager;
 import com.bundleessential.home.HomeManager;
 import com.bundleessential.tpa.TpaManager;
+import com.bundleessential.trade.TradeManager;
+import com.bundleessential.updater.UpdateManager;
 import com.bundleessential.waypoint.WaypointManager;
 import com.bundleessential.util.DataStorage;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -14,6 +16,8 @@ public class BundledEssential extends JavaPlugin {
     private TpaManager tpaManager;
     private HomeManager homeManager;
     private BackManager backManager;
+    private TradeManager tradeManager;
+    private UpdateManager updateManager;
     private WaypointManager waypointManager;
 
     @Override
@@ -25,9 +29,12 @@ public class BundledEssential extends JavaPlugin {
         tpaManager = new TpaManager(this);
         homeManager = new HomeManager(this);
         backManager = new BackManager(this);
+        tradeManager = new TradeManager(this);
+        updateManager = new UpdateManager(this);
         waypointManager = new WaypointManager(this);
 
         registerCommands();
+        updateManager.startup();
 
         getLogger().info("BundledEssential has been enabled!");
     }
@@ -50,6 +57,10 @@ public class BundledEssential extends JavaPlugin {
         getCommand("home").setExecutor(homeManager);
 
         getCommand("back").setExecutor(backManager);
+
+        getCommand("trade").setExecutor(tradeManager);
+        getCommand("tradeaccept").setExecutor(tradeManager);
+        getCommand("tradecancel").setExecutor(tradeManager);
 
         getCommand("waypoint").setExecutor(waypointManager);
         getCommand("waypoint").setTabCompleter(waypointManager);

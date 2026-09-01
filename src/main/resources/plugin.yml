@@ -31,3 +31,12 @@ commands:
   waypoint:
     description: Manage waypoints
     usage: /waypoint [new|delete|name]
+  trade:
+    description: Send a trade request to a player
+    usage: /trade <player>
+  tradeaccept:
+    description: Accept a pending trade request
+    usage: /tradeaccept
+  tradecancel:
+    description: Cancel your pending trade requests
+    usage: /tradecancel
