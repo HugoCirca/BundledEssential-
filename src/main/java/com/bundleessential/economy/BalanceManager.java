@@ -4,6 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,18 +19,21 @@ import org.bukkit.scoreboard.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Random;
+import java.util.UUID;
 
-public class BalanceManager implements Listener {
+public class BalanceManager implements Listener, CommandExecutor {
 
     private final JavaPlugin plugin;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Path balancesFile;
     private final JsonObject balances = new JsonObject();
+    private final Random random = new Random();
     private BountyManager bountyManager;
 
-    private static final double MOB_KILL_REWARD = 5.0;
+    private static final double MAX_MOB_REWARD = 10.0;
     private static final double PLAYTIME_REWARD = 15.0;
-    private static final long PLAYTIME_INTERVAL_TICKS = 6000L; // 5 minutes
+    private static final long PLAYTIME_INTERVAL_TICKS = 6000L;
 
     public BalanceManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -69,6 +75,14 @@ public class BalanceManager implements Listener {
 
     public double getBalance(Player player) {
         String key = getBalanceKey(player);
+        if (balances.has(key)) {
+            return balances.get(key).getAsDouble();
+        }
+        return 0.0;
+    }
+
+    public double getBalance(UUID uuid) {
+        String key = uuid.toString();
         if (balances.has(key)) {
             return balances.get(key).getAsDouble();
         }
@@ -149,8 +163,29 @@ public class BalanceManager implements Listener {
                 bountyManager.claimBounty(killer, victim);
             }
         } else {
-            addBalance(killer, MOB_KILL_REWARD);
-            killer.sendMessage("§a[Kill] §e+$" + MOB_KILL_REWARD);
+            double reward = Math.round(random.nextDouble() * MAX_MOB_REWARD * 100.0) / 100.0;
+            if (reward < 0.01) reward = 0.01;
+            addBalance(killer, reward);
+            killer.sendMessage("§a[Kill] §e+$" + String.format("%.2f", reward));
         }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length == 0) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("§cOnly players can use this command!");
+                return true;
+            }
+            player.sendMessage("§6Your balance: §a$" + String.format("%.2f", getBalance(player)));
+        } else {
+            Player target = Bukkit.getPlayer(args[0]);
+            if (target == null) {
+                sender.sendMessage("§cPlayer not found or offline!");
+                return true;
+            }
+            sender.sendMessage("§6" + target.getName() + "'s balance: §a$" + String.format("%.2f", getBalance(target)));
+        }
+        return true;
     }
 }

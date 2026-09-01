@@ -52,3 +52,6 @@ commands:
   bundledhelp:
     description: Show all available commands
     usage: /bundledhelp
+  balance:
+    description: Check your balance or another player's balance
+    usage: /balance [player]
