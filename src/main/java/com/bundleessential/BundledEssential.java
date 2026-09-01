@@ -1,6 +1,7 @@
 package com.bundleessential;
 
 import com.bundleessential.back.BackManager;
+import com.bundleessential.cosmetics.CosmeticsManager;
 import com.bundleessential.economy.BalanceManager;
 import com.bundleessential.economy.BountyManager;
 import com.bundleessential.economy.PriceManager;
@@ -14,6 +15,7 @@ import com.bundleessential.util.DataStorage;
 import com.bundleessential.util.HelpManager;
 import com.bundleessential.waypoint.WaypointManager;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class BundledEssential extends JavaPlugin {
@@ -32,6 +34,7 @@ public class BundledEssential extends JavaPlugin {
     private BountyManager bountyManager;
     private HelpManager helpManager;
     private SellManager sellManager;
+    private CosmeticsManager cosmeticsManager;
 
     @Override
     public void onEnable() {
@@ -39,23 +42,41 @@ public class BundledEssential extends JavaPlugin {
         saveDefaultConfig();
 
         dataStorage = new DataStorage(this);
-        tpaManager = new TpaManager(this);
-        homeManager = new HomeManager(this);
-        backManager = new BackManager(this);
-        tradeManager = new TradeManager(this);
+
+        if (getConfig().getBoolean("tpa.enabled", true)) {
+            tpaManager = new TpaManager(this);
+        }
+        if (getConfig().getBoolean("home.enabled", true)) {
+            homeManager = new HomeManager(this);
+        }
+        if (getConfig().getBoolean("back.enabled", true)) {
+            backManager = new BackManager(this);
+        }
+        if (getConfig().getBoolean("trade.enabled", true)) {
+            tradeManager = new TradeManager(this);
+        }
+        if (getConfig().getBoolean("waypoints.enabled", true)) {
+            waypointManager = new WaypointManager(this);
+        }
+        if (getConfig().getBoolean("economy.enabled", true)) {
+            balanceManager = new BalanceManager(this);
+            priceManager = new PriceManager(this);
+            bountyManager = new BountyManager(balanceManager);
+            balanceManager.setBountyManager(bountyManager);
+            sellManager = new SellManager(balanceManager, priceManager);
+            shopManager = new ShopManager(balanceManager, priceManager, sellManager);
+        }
+        if (getConfig().getBoolean("cosmetics.enabled", false) && balanceManager != null) {
+            cosmeticsManager = new CosmeticsManager(this, balanceManager);
+        }
+
         updateManager = new UpdateManager(this);
-        waypointManager = new WaypointManager(this);
-        balanceManager = new BalanceManager(this);
-        priceManager = new PriceManager(this);
-        bountyManager = new BountyManager(balanceManager);
-        balanceManager.setBountyManager(bountyManager);
-        shopManager = new ShopManager(balanceManager, priceManager, sellManager);
-        sellManager = new SellManager(balanceManager, priceManager);
         helpManager = new HelpManager();
 
-        Bukkit.getPluginManager().registerEvents(balanceManager, this);
-        Bukkit.getPluginManager().registerEvents(shopManager, this);
-        Bukkit.getPluginManager().registerEvents(sellManager, this);
+        if (balanceManager != null) Bukkit.getPluginManager().registerEvents(balanceManager, this);
+        if (shopManager != null) Bukkit.getPluginManager().registerEvents(shopManager, this);
+        if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
+        if (cosmeticsManager != null) Bukkit.getPluginManager().registerEvents(cosmeticsManager, this);
 
         registerCommands();
         updateManager.startup();
@@ -68,44 +89,61 @@ public class BundledEssential extends JavaPlugin {
         if (dataStorage != null) {
             dataStorage.saveAll();
         }
+        if (cosmeticsManager != null) {
+            cosmeticsManager.saveCosmetics();
+        }
         getLogger().info("BundledEssential has been disabled!");
     }
 
     private void registerCommands() {
-        getCommand("tpa").setExecutor(tpaManager);
-        getCommand("tpaccept").setExecutor(tpaManager);
-        getCommand("tpahere").setExecutor(tpaManager);
-
-        getCommand("sethome").setExecutor(homeManager);
-        getCommand("removehome").setExecutor(homeManager);
-        getCommand("home").setExecutor(homeManager);
-
-        getCommand("back").setExecutor(backManager);
-
-        getCommand("trade").setExecutor(tradeManager);
-        getCommand("tradeaccept").setExecutor(tradeManager);
-        getCommand("tradecancel").setExecutor(tradeManager);
-
-        getCommand("waypoint").setExecutor(waypointManager);
-        getCommand("waypoint").setTabCompleter(waypointManager);
-
-        getCommand("shop").setExecutor((sender, command, label, args) -> {
-            if (sender instanceof org.bukkit.entity.Player player) {
-                shopManager.openShop(player);
-            } else {
-                sender.sendMessage("§cOnly players can use this command!");
-            }
-            return true;
-        });
-
-        getCommand("sell").setExecutor(sellManager);
-        getCommand("sellgui").setExecutor(sellManager);
-
-        getCommand("pay").setExecutor(bountyManager);
-        getCommand("bounty").setExecutor(bountyManager);
-        getCommand("balance").setExecutor(balanceManager);
+        if (tpaManager != null) {
+            getCommand("tpa").setExecutor(tpaManager);
+            getCommand("tpaccept").setExecutor(tpaManager);
+            getCommand("tpahere").setExecutor(tpaManager);
+        }
+        if (homeManager != null) {
+            getCommand("sethome").setExecutor(homeManager);
+            getCommand("removehome").setExecutor(homeManager);
+            getCommand("home").setExecutor(homeManager);
+        }
+        if (backManager != null) {
+            getCommand("back").setExecutor(backManager);
+        }
+        if (tradeManager != null) {
+            getCommand("trade").setExecutor(tradeManager);
+            getCommand("tradeaccept").setExecutor(tradeManager);
+            getCommand("tradecancel").setExecutor(tradeManager);
+        }
+        if (waypointManager != null) {
+            getCommand("waypoint").setExecutor(waypointManager);
+            getCommand("waypoint").setTabCompleter(waypointManager);
+        }
+        if (shopManager != null) {
+            getCommand("shop").setExecutor((sender, command, label, args) -> {
+                if (sender instanceof Player player) {
+                    shopManager.openShop(player);
+                } else {
+                    sender.sendMessage("§cOnly players can use this command!");
+                }
+                return true;
+            });
+        }
+        if (sellManager != null) {
+            getCommand("sell").setExecutor(sellManager);
+            getCommand("sellgui").setExecutor(sellManager);
+        }
+        if (bountyManager != null) {
+            getCommand("pay").setExecutor(bountyManager);
+            getCommand("paytax").setExecutor(bountyManager);
+            getCommand("bounty").setExecutor(bountyManager);
+        }
+        if (balanceManager != null) {
+            getCommand("balance").setExecutor(balanceManager);
+        }
+        if (cosmeticsManager != null) {
+            getCommand("cosmetics").setExecutor(cosmeticsManager);
+        }
         getCommand("bundledupdate").setExecutor(updateManager);
-
         getCommand("bundledhelp").setExecutor(helpManager);
     }
 

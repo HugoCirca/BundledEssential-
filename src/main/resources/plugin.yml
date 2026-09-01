@@ -64,3 +64,9 @@ commands:
   bundledupdate:
     description: Check for and download updates
     usage: /bundledupdate
+  paytax:
+    description: Pay your accumulated taxes
+    usage: /paytax
+  cosmetics:
+    description: Open the cosmetics shop
+    usage: /cosmetics [prefix|joinmessage|deathmessage|killeffect]

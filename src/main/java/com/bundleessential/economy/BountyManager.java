@@ -5,6 +5,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,9 +15,16 @@ public class BountyManager implements CommandExecutor {
 
     private final BalanceManager balanceManager;
     private final Map<UUID, Double> bounties = new HashMap<>();
+    private final Map<UUID, Double> unpaidTaxes = new HashMap<>();
+    private final Map<UUID, Long> lastTaxTime = new HashMap<>();
+
+    private static final double BOUNTY_TAX_RATE = 0.20;
+    private static final double PAY_TAX_RATE = 0.05;
+    private static final long WEEK_MILLIS = 7 * 24 * 60 * 60 * 1000L;
 
     public BountyManager(BalanceManager balanceManager) {
         this.balanceManager = balanceManager;
+        startTaxReminder();
     }
 
     @Override
@@ -29,6 +37,7 @@ public class BountyManager implements CommandExecutor {
                 }
                 handlePay(sender, args[0], args[1]);
             }
+            case "paytax" -> handlePayTax(sender);
             case "bounty" -> {
                 if (args.length == 1) {
                     handleBountyCheck(sender, args[0]);
@@ -71,12 +80,37 @@ public class BountyManager implements CommandExecutor {
             return;
         }
 
+        double tax = Math.round(amount * PAY_TAX_RATE * 100.0) / 100.0;
+        double afterTax = Math.round((amount - tax) * 100.0) / 100.0;
+
         if (balanceManager.removeBalance(player, amount)) {
-            balanceManager.addBalance(target, amount);
-            player.sendMessage("§aYou paid §e$" + String.format("%.2f", amount) + " §ato §e" + target.getName());
-            target.sendMessage("§aYou received §e$" + String.format("%.2f", amount) + " §afrom §e" + player.getName());
+            balanceManager.addBalance(target, afterTax);
+            unpaidTaxes.merge(player.getUniqueId(), tax, Double::sum);
+            player.sendMessage("§aYou paid §e$" + String.format("%.2f", amount) + " §ato §e" + target.getName() + " §7(tax: $" + String.format("%.2f", tax) + ")");
+            target.sendMessage("§aYou received §e$" + String.format("%.2f", afterTax) + " §afrom §e" + player.getName());
         } else {
             player.sendMessage("§cNot enough money!");
+        }
+    }
+
+    private void handlePayTax(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cOnly players can use this command!");
+            return;
+        }
+
+        double owed = unpaidTaxes.getOrDefault(player.getUniqueId(), 0.0);
+        if (owed <= 0) {
+            player.sendMessage("§aYou have no taxes to pay!");
+            return;
+        }
+
+        if (balanceManager.removeBalance(player, owed)) {
+            unpaidTaxes.remove(player.getUniqueId());
+            lastTaxTime.put(player.getUniqueId(), System.currentTimeMillis());
+            player.sendMessage("§aYou paid §e$" + String.format("%.2f", owed) + " §ain taxes!");
+        } else {
+            player.sendMessage("§cNot enough money! You owe §e$" + String.format("%.2f", owed) + "§c in taxes.");
         }
     }
 
@@ -136,13 +170,33 @@ public class BountyManager implements CommandExecutor {
     public void claimBounty(Player killer, Player victim) {
         double bounty = bounties.remove(victim.getUniqueId());
         if (bounty > 0) {
-            balanceManager.addBalance(killer, bounty);
-            killer.sendMessage("§aYou claimed the §e$" + String.format("%.2f", bounty) + " §abounty on §e" + victim.getName());
+            double tax = Math.round(bounty * BOUNTY_TAX_RATE * 100.0) / 100.0;
+            double payout = Math.round((bounty - tax) * 100.0) / 100.0;
+            balanceManager.addBalance(killer, payout);
+            killer.sendMessage("§aYou claimed the §e$" + String.format("%.2f", bounty) + " §abounty on §e" + victim.getName() + " §7(tax: $" + String.format("%.2f", tax) + ")");
             Bukkit.broadcastMessage("§6[Bounty] §e" + killer.getName() + " §ahas claimed the §e$" + String.format("%.2f", bounty) + " §abounty on §e" + victim.getName());
         }
     }
 
     public double getBounty(UUID uuid) {
         return bounties.getOrDefault(uuid, 0.0);
+    }
+
+    public double getUnpaidTaxes(UUID uuid) {
+        return unpaidTaxes.getOrDefault(uuid, 0.0);
+    }
+
+    private void startTaxReminder() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    double owed = unpaidTaxes.getOrDefault(player.getUniqueId(), 0.0);
+                    if (owed > 0) {
+                        player.sendMessage("§c§l[Taxes] §ePay your taxes: $" + String.format("%.2f", owed) + " §7(/paytax)");
+                    }
+                }
+            }
+        }.runTaskTimer(Bukkit.getPluginManager().getPlugin("BundledEssential"), 1200L, 1200L);
     }
 }

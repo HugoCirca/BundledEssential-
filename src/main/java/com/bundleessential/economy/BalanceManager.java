@@ -32,7 +32,8 @@ public class BalanceManager implements Listener, CommandExecutor {
     private BountyManager bountyManager;
 
     private static final double MAX_MOB_REWARD = 10.0;
-    private static final double PLAYTIME_REWARD = 15.0;
+    private static final double MIN_PLAYTIME_REWARD = 1.0;
+    private static final double MAX_PLAYTIME_REWARD = 3.0;
     private static final long PLAYTIME_INTERVAL_TICKS = 6000L;
 
     public BalanceManager(JavaPlugin plugin) {
@@ -117,8 +118,9 @@ public class BalanceManager implements Listener, CommandExecutor {
             @Override
             public void run() {
                 for (Player player : Bukkit.getOnlinePlayers()) {
-                    addBalance(player, PLAYTIME_REWARD);
-                    player.sendMessage("§a[Playtime] §e+$" + PLAYTIME_REWARD);
+                    double reward = Math.round((MIN_PLAYTIME_REWARD + random.nextDouble() * (MAX_PLAYTIME_REWARD - MIN_PLAYTIME_REWARD)) * 100.0) / 100.0;
+                    addBalance(player, reward);
+                    player.sendMessage("§a[Playtime] §e+$" + String.format("%.2f", reward));
                 }
             }
         }.runTaskTimer(plugin, PLAYTIME_INTERVAL_TICKS, PLAYTIME_INTERVAL_TICKS);

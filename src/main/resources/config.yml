@@ -1,2 +1,52 @@
 # BundledEssential Configuration
-# This file is auto-generated. Do not edit unless you know what you're doing.
+# Disable features you don't want (false = disabled)
+
+# TPA System
+tpa:
+  enabled: true
+
+# Home System
+home:
+  enabled: true
+
+# Back Command
+back:
+  enabled: true
+
+# Waypoint System
+waypoints:
+  enabled: true
+
+# Trade System
+trade:
+  enabled: true
+
+# Economy System
+economy:
+  enabled: true
+  mob-kill-rewards: true
+  playtime-rewards: true
+
+# Bounty System (includes 20% tax on claims)
+bounty:
+  enabled: true
+
+# Pay System (includes 5% tax)
+pay:
+  enabled: true
+
+# Shop System
+shop:
+  enabled: true
+
+# Sell System
+sell:
+  enabled: true
+
+# Cosmetics System (optional - disabled by default)
+cosmetics:
+  enabled: false
+
+# Auto Updater
+updater:
+  enabled: true
