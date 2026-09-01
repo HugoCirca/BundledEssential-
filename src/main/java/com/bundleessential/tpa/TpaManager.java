@@ -145,9 +145,9 @@ public class TpaManager implements CommandExecutor {
         }
 
         if (isTpaHere) {
-            sender.teleport(target.getLocation());
-            sender.sendMessage("§aYou have been teleported to §e" + target.getName() + "§a!");
-            target.sendMessage("§aTeleported §e" + sender.getName() + " §ato you!");
+            target.teleport(sender.getLocation());
+            target.sendMessage("§aYou have been teleported to §e" + sender.getName() + "§a!");
+            sender.sendMessage("§aTeleported §e" + target.getName() + " §ato you!");
         } else {
             sender.teleport(target.getLocation());
             sender.sendMessage("§aYou have been teleported to §e" + target.getName() + "§a!");
