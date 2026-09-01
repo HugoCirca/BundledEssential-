@@ -76,10 +76,9 @@ public class ShopManager implements Listener {
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
-        event.setCancelled(true);
-
         // Main shop
         if (title.equals("§6§lShop")) {
+            event.setCancelled(true);
             if (event.getSlot() == 13) {
                 openLogsShop(player);
             }
@@ -88,6 +87,7 @@ public class ShopManager implements Listener {
 
         // Logs shop
         if (title.equals("§6§lLogs Shop")) {
+            event.setCancelled(true);
             // Back button
             if (event.getSlot() == 4) {
                 openShop(player);
