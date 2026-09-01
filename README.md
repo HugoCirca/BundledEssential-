@@ -1,6 +1,6 @@
 # BundledEssential
 
-A lightweight, low-resource Minecraft plugin that bundles essential teleportation and location commands into one jar. No external dependencies required.
+A lightweight, low-resource Minecraft plugin that bundles essential teleportation, location, and economy commands into one jar. No external dependencies required.
 
 **Works with Spigot, Paper, and forks (1.13+)**
 
@@ -15,8 +15,11 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Back** | `/back` |
 | **Waypoints** | `/waypoint` |
 | **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
+| **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/bounty` |
+| **Help** | `/bundledhelp` |
 
-- **Auto-updater** — Checks for updates on startup, downloads and restarts automatically
+- **Auto-updater** — Checks for updates on startup, downloads and applies on next restart
+- **Dynamic Pricing** — Shop prices drift based on market simulation and inflation
 
 ---
 
@@ -42,7 +45,6 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/home` | Teleport to your home |
 
 - Each player can only have **one home**
-- Setting a home when you already have one will show an error
 
 ### Back
 
@@ -62,9 +64,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/waypoint <name>` | Teleport to a waypoint by name |
 
 - Maximum of **27 waypoints** per player
-- GUI uses colored wool for occupied slots, gray glass for empty slots
 - Click a waypoint in the GUI to teleport
-- GUI is click-proof and drag-proof (no item theft)
 
 ### Trade
 
@@ -75,7 +75,44 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/tradecancel` | Cancel your pending trade requests |
 
 - Requests expire after **30 seconds**
-- You cannot trade with yourself
+
+### Economy
+
+| Command | Description |
+|---------|-------------|
+| `/shop` | Open the shop with categories |
+| `/sell` | Sell the item in your main hand |
+| `/sellgui` | Open sell GUI — put items in, close to sell |
+| `/balance` | Check your balance |
+| `/balance <player>` | Check another player's balance |
+| `/pay <player> <amount>` | Pay a player |
+| `/bounty <player> [amount]` | Set or check a bounty |
+
+#### Money Sources
+- **Kill mobs** — $0.01 to $10.00 (random)
+- **Playtime** — $15.00 every 5 minutes
+- **Bounty claims** — Kill a player with a bounty to claim it
+
+#### Shop Categories
+- **Logs** — Oak, Birch, Spruce, Jungle, Acacia, Dark Oak, Mangrove, Cherry, Crimson, Warped
+- **Stone** — Cobblestone, Stone, Deepslate, Andesite, Diorite, Granite, Tuff, etc.
+- **Ores** — Coal, Iron, Copper, Gold, Redstone, Lapis, Diamond, Emerald, Netherite
+- **Crops** — Wheat, Carrot, Potato, Beetroot, Melon, Pumpkin, Sugar Cane, etc.
+- **Mob Drops** — Bone, String, Gunpowder, Ender Pearl, Blaze Rod, etc.
+- **Building** — Planks, Fences, Stairs, Slabs, Doors, Glass, Bricks, etc.
+- **Decoration** — Crafting Table, Furnace, Anvil, Chest, Torch, Lantern, etc.
+
+#### Dynamic Pricing
+- Prices drift ±5-10% every 5 minutes
+- Inflation grows slowly over server uptime
+- Enchanted items sell for bonus money
+- Sell price is 60% of current buy price
+
+### Help
+
+| Command | Description |
+|---------|-------------|
+| `/bundledhelp` | Show all available commands |
 
 ---
 
@@ -84,9 +121,9 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 The plugin automatically checks for new versions on startup via GitHub Releases. If an update is found:
 
 1. The new JAR is downloaded to `plugins/update/`
-2. A broadcast message warns players of an upcoming restart
-3. The server restarts after 10 seconds
-4. On restart, the old JAR is replaced with the new one
+2. On next server restart, the old JAR is replaced with the new one
+
+No forced restarts — updates apply naturally.
 
 ---
 
@@ -94,7 +131,7 @@ The plugin automatically checks for new versions on startup via GitHub Releases.
 
 1. Download the latest `BundledEssential-X.X.X.jar` from [Releases](https://github.com/HugoCirca/BundledEssential-/releases)
 2. Place the jar in your server's `plugins/` folder
-3. Restart or reload the server
+3. Restart the server
 
 The plugin will keep itself updated automatically.
 
@@ -132,6 +169,7 @@ Just push to `main` and a new release is created.
 All player data is stored automatically in:
 - `plugins/BundledEssential/homes.yml` - Home locations
 - `plugins/BundledEssential/config.yml` - Waypoint locations
+- `plugins/BundledEssential/balances.json` - Player balances
 
 No manual configuration needed.
 
@@ -149,6 +187,7 @@ bundleessential.home: true
 bundleessential.back: true
 bundleessential.waypoint: true
 bundleessential.trade: true
+bundleessential.economy: true
 ```
 
 ---
