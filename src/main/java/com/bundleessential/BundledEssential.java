@@ -49,7 +49,7 @@ public class BundledEssential extends JavaPlugin {
         priceManager = new PriceManager(this);
         bountyManager = new BountyManager(balanceManager);
         balanceManager.setBountyManager(bountyManager);
-        shopManager = new ShopManager(balanceManager, priceManager);
+        shopManager = new ShopManager(balanceManager, priceManager, sellManager);
         sellManager = new SellManager(balanceManager, priceManager);
         helpManager = new HelpManager();
 
