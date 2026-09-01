@@ -14,6 +14,9 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Home** | `/sethome`, `/removehome`, `/home` |
 | **Back** | `/back` |
 | **Waypoints** | `/waypoint` |
+| **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
+
+- **Auto-updater** — Checks for updates on startup, downloads and restarts automatically
 
 ---
 
@@ -63,13 +66,37 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - Click a waypoint in the GUI to teleport
 - GUI is click-proof and drag-proof (no item theft)
 
+### Trade
+
+| Command | Description |
+|---------|-------------|
+| `/trade <player>` | Send a trade request to a player |
+| `/tradeaccept` | Accept a pending trade request |
+| `/tradecancel` | Cancel your pending trade requests |
+
+- Requests expire after **30 seconds**
+- You cannot trade with yourself
+
+---
+
+## Auto-Updater
+
+The plugin automatically checks for new versions on startup via GitHub Releases. If an update is found:
+
+1. The new JAR is downloaded to `plugins/update/`
+2. A broadcast message warns players of an upcoming restart
+3. The server restarts after 10 seconds
+4. On restart, the old JAR is replaced with the new one
+
 ---
 
 ## Installation
 
-1. Download `BundledEssential-1.0.0.jar` from [Releases](https://github.com/HugoCirca/BundledEssential-/releases)
+1. Download the latest `BundledEssential-X.X.X.jar` from [Releases](https://github.com/HugoCirca/BundledEssential-/releases)
 2. Place the jar in your server's `plugins/` folder
 3. Restart or reload the server
+
+The plugin will keep itself updated automatically.
 
 ---
 
@@ -83,7 +110,20 @@ cd BundledEssential-
 ./gradlew clean build
 ```
 
-The compiled jar will be in `build/libs/BundledEssential-1.0.0.jar`.
+The compiled jar will be in `build/libs/`.
+
+---
+
+## CI/CD
+
+The GitHub Actions workflow automatically:
+
+1. Bumps the patch version in `build.gradle`
+2. Builds the plugin
+3. Commits the version bump
+4. Creates a GitHub release with the new tag
+
+Just push to `main` and a new release is created.
 
 ---
 
@@ -108,6 +148,7 @@ bundleessential.tpa: true
 bundleessential.home: true
 bundleessential.back: true
 bundleessential.waypoint: true
+bundleessential.trade: true
 ```
 
 ---
