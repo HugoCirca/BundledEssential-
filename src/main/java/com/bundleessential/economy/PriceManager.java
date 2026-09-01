@@ -232,8 +232,8 @@ public class PriceManager {
         basePrices.put(Material.PLAYER_HEAD, 100.00);
         basePrices.put(Material.PHANTOM_MEMBRANE, 20.00);
         basePrices.put(Material.SHULKER_SHELL, 80.00);
-        basePrices.put(Material.ELYTRA, 750.00);
-        basePrices.put(Material.TOTEM_OF_UNDYING, 1500.00);
+        basePrices.put(Material.ELYTRA, 7500.00);
+        basePrices.put(Material.TOTEM_OF_UNDYING, 5000.00);
         basePrices.put(Material.NETHER_STAR, 3000.00);
         basePrices.put(Material.ARROW, 1.00);
         basePrices.put(Material.FLINT, 2.00);
@@ -354,7 +354,6 @@ public class PriceManager {
         basePrices.put(Material.NETHERITE_BOOTS, 600.00);
         basePrices.put(Material.TURTLE_HELMET, 100.00);
         basePrices.put(Material.SHIELD, 15.00);
-        basePrices.put(Material.ELYTRA, 750.00);
 
         // === REDSTONE ===
         basePrices.put(Material.REDSTONE, 2.00);
