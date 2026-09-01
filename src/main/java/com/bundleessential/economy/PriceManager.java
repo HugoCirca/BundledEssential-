@@ -7,9 +7,18 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.logging.Level;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class PriceManager {
 
@@ -18,15 +27,19 @@ public class PriceManager {
     private final Map<Material, Double> basePrices = new HashMap<>();
     private final Map<Material, Double> multipliers = new HashMap<>();
     private final Map<String, Double> categoryVolatility = new HashMap<>();
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private final File shopFile;
 
     private long serverStartTime;
     private double inflationFactor = 1.0;
 
     public PriceManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.shopFile = new File(plugin.getDataFolder(), "shop.json");
         serverStartTime = System.currentTimeMillis();
         initCategories();
         initPrices();
+        loadShopPrices();
         startDailyUpdate();
     }
 
@@ -45,6 +58,44 @@ public class PriceManager {
         categoryVolatility.put("nether", 0.14);
         categoryVolatility.put("end", 0.16);
         categoryVolatility.put("misc", 0.11);
+    }
+
+    private void loadShopPrices() {
+        plugin.getDataFolder().mkdirs();
+        if (shopFile.exists()) {
+            try {
+                String json = new String(Files.readAllBytes(shopFile.toPath()));
+                JsonObject data = JsonParser.parseString(json).getAsJsonObject();
+                for (Map.Entry<String, com.google.gson.JsonElement> entry : data.entrySet()) {
+                    try {
+                        Material mat = Material.valueOf(entry.getKey());
+                        basePrices.put(mat, entry.getValue().getAsDouble());
+                    } catch (IllegalArgumentException ignored) {}
+                }
+                plugin.getLogger().info("Loaded custom prices from shop.json");
+            } catch (IOException e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load shop.json", e);
+            }
+        } else {
+            saveShopPrices();
+        }
+    }
+
+    public void saveShopPrices() {
+        plugin.getDataFolder().mkdirs();
+        try {
+            JsonObject data = new JsonObject();
+            for (Map.Entry<Material, Double> entry : basePrices.entrySet()) {
+                data.addProperty(entry.getKey().name(), entry.getValue());
+            }
+            Files.write(shopFile.toPath(), gson.toJson(data).getBytes());
+        } catch (IOException e) {
+            plugin.getLogger().log(Level.WARNING, "Failed to save shop.json", e);
+        }
+    }
+
+    public void reloadShopPrices() {
+        loadShopPrices();
     }
 
     private void initPrices() {
