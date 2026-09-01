@@ -1,6 +1,10 @@
 package com.bundleessential.updater;
 
 import com.bundleessential.BundledEssential;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.*;
@@ -10,7 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Level;
 
-public class UpdateManager {
+public class UpdateManager implements CommandExecutor {
 
     private final BundledEssential plugin;
     private static final String GITHUB_REPO = "HugoCirca/BundledEssential-";
@@ -23,6 +27,61 @@ public class UpdateManager {
     public void startup() {
         cleanupOldJar();
         checkForUpdates();
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage("§cOnly players can use this command!");
+            return true;
+        }
+
+        if (!player.hasPermission("bundleessential.update")) {
+            player.sendMessage("§cNo permission!");
+            return true;
+        }
+
+        player.sendMessage("§eChecking for updates...");
+        checkForUpdateManual(player);
+        return true;
+    }
+
+    private void checkForUpdateManual(Player player) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                try {
+                    String currentVersion = plugin.getDescription().getVersion();
+                    String latestTag = getLatestTag();
+                    if (latestTag == null) {
+                        player.sendMessage("§cFailed to check for updates.");
+                        return;
+                    }
+
+                    String latestVersion = latestTag.replace("v", "");
+
+                    if (latestVersion.equals(currentVersion)) {
+                        player.sendMessage("§aYou are already on the latest version (v" + currentVersion + ")");
+                        return;
+                    }
+
+                    if (isNewerVersion(latestVersion, currentVersion)) {
+                        player.sendMessage("§eNew update found: v" + latestVersion + " (current: " + currentVersion + ")");
+                        player.sendMessage("§eDownloading...");
+                        boolean success = downloadUpdate(latestTag);
+                        if (success) {
+                            player.sendMessage("§aUpdate downloaded! It will be applied on next restart.");
+                        } else {
+                            player.sendMessage("§cFailed to download update.");
+                        }
+                    } else {
+                        player.sendMessage("§cYou are running a newer version than the latest release.");
+                    }
+                } catch (Exception e) {
+                    player.sendMessage("§cFailed to check for updates: " + e.getMessage());
+                }
+            }
+        }.runTaskAsynchronously(plugin);
     }
 
     private void cleanupOldJar() {
@@ -118,7 +177,7 @@ public class UpdateManager {
         return false;
     }
 
-    private void downloadUpdate(String tag) {
+    private boolean downloadUpdate(String tag) {
         try {
             Path updateDir = plugin.getDataFolder().getParentFile().toPath().resolve("update");
             Files.createDirectories(updateDir);
@@ -132,7 +191,7 @@ public class UpdateManager {
 
             if (conn.getResponseCode() != 200) {
                 plugin.getLogger().warning("Failed to download update: HTTP " + conn.getResponseCode());
-                return;
+                return false;
             }
 
             InputStream in = conn.getInputStream();
@@ -146,9 +205,11 @@ public class UpdateManager {
             in.close();
 
             plugin.getLogger().info("Update downloaded. It will be applied on next restart.");
+            return true;
 
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to download update", e);
+            return false;
         }
     }
 }

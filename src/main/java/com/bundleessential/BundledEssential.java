@@ -104,6 +104,7 @@ public class BundledEssential extends JavaPlugin {
         getCommand("pay").setExecutor(bountyManager);
         getCommand("bounty").setExecutor(bountyManager);
         getCommand("balance").setExecutor(balanceManager);
+        getCommand("bundledupdate").setExecutor(updateManager);
 
         getCommand("bundledhelp").setExecutor(helpManager);
     }
