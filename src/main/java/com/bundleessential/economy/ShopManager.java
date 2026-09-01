@@ -57,38 +57,17 @@ public class ShopManager implements Listener {
     private void openCategory(Player player, String category, Material... materials) {
         Inventory inv = Bukkit.createInventory(null, 54, "§6§l" + category + " Shop");
 
-        // Buy row 1: slots 10-16
-        // Buy row 2: slots 19-25
-        // Buy row 3: slots 28-34
-        // Sell row 1: slots 37-43
-        // Sell row 2: slots 46-52
-
         int buySlot = 10;
-        int sellSlot = 37;
 
-        for (int i = 0; i < materials.length; i++) {
-            Material mat = materials[i];
-
-            // Buy items - rows 1-3
-            if (buySlot <= 34) {
-                double buyPrice = priceManager.getBuyPrice(mat);
-                inv.setItem(buySlot, makeItem(mat, "§aBuy " + formatName(mat),
-                        "§ePrice: $" + String.format("%.2f", buyPrice),
-                        "§7Click to buy 1"));
-                buySlot++;
-                if (buySlot == 17) buySlot = 19;
-                if (buySlot == 26) buySlot = 28;
-            }
-
-            // Sell items - rows 4-5
-            if (i < 14 && sellSlot <= 52) {
-                double sellPrice = priceManager.getSellPrice(mat);
-                inv.setItem(sellSlot, makeItem(mat, "§cSell " + formatName(mat),
-                        "§eSell: $" + String.format("%.2f", sellPrice),
-                        "§7Click to sell 1"));
-                sellSlot++;
-                if (sellSlot == 44) sellSlot = 46;
-            }
+        for (Material mat : materials) {
+            if (buySlot > 34) break;
+            double buyPrice = priceManager.getBuyPrice(mat);
+            inv.setItem(buySlot, makeItem(mat, "§a" + formatName(mat),
+                    "§ePrice: $" + String.format("%.2f", buyPrice),
+                    "§7Click to buy 1"));
+            buySlot++;
+            if (buySlot == 17) buySlot = 19;
+            if (buySlot == 26) buySlot = 28;
         }
 
         inv.setItem(4, makeItem(Material.ARROW, "§cBack to Shop"));
@@ -370,19 +349,6 @@ public class ShopManager implements Listener {
                     player.sendMessage("§aBought 1x " + formatName(material) + " for $" + String.format("%.2f", buyPrice));
                 } else {
                     player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", buyPrice));
-                }
-                return;
-            }
-
-            // Sell items (rows 4-5: slots 37-43, 46-52)
-            if ((event.getSlot() >= 37 && event.getSlot() <= 43) ||
-                (event.getSlot() >= 46 && event.getSlot() <= 52)) {
-                if (player.getInventory().containsAtLeast(new ItemStack(material), 1)) {
-                    player.getInventory().removeItem(new ItemStack(material, 1));
-                    balanceManager.addBalance(player, sellPrice);
-                    player.sendMessage("§aSold 1x " + formatName(material) + " for $" + String.format("%.2f", sellPrice));
-                } else {
-                    player.sendMessage("§cYou don't have any " + formatName(material) + "!");
                 }
             }
         }
