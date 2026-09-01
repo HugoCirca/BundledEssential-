@@ -1,12 +1,17 @@
 package com.bundleessential;
 
 import com.bundleessential.back.BackManager;
+import com.bundleessential.economy.BalanceManager;
+import com.bundleessential.economy.BountyManager;
+import com.bundleessential.economy.ShopManager;
 import com.bundleessential.home.HomeManager;
 import com.bundleessential.tpa.TpaManager;
 import com.bundleessential.trade.TradeManager;
 import com.bundleessential.updater.UpdateManager;
-import com.bundleessential.waypoint.WaypointManager;
 import com.bundleessential.util.DataStorage;
+import com.bundleessential.util.HelpManager;
+import com.bundleessential.waypoint.WaypointManager;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class BundledEssential extends JavaPlugin {
@@ -19,6 +24,10 @@ public class BundledEssential extends JavaPlugin {
     private TradeManager tradeManager;
     private UpdateManager updateManager;
     private WaypointManager waypointManager;
+    private BalanceManager balanceManager;
+    private ShopManager shopManager;
+    private BountyManager bountyManager;
+    private HelpManager helpManager;
 
     @Override
     public void onEnable() {
@@ -32,6 +41,14 @@ public class BundledEssential extends JavaPlugin {
         tradeManager = new TradeManager(this);
         updateManager = new UpdateManager(this);
         waypointManager = new WaypointManager(this);
+        balanceManager = new BalanceManager(this);
+        bountyManager = new BountyManager(balanceManager);
+        balanceManager.setBountyManager(bountyManager);
+        shopManager = new ShopManager(balanceManager);
+        helpManager = new HelpManager();
+
+        Bukkit.getPluginManager().registerEvents(balanceManager, this);
+        Bukkit.getPluginManager().registerEvents(shopManager, this);
 
         registerCommands();
         updateManager.startup();
@@ -64,6 +81,20 @@ public class BundledEssential extends JavaPlugin {
 
         getCommand("waypoint").setExecutor(waypointManager);
         getCommand("waypoint").setTabCompleter(waypointManager);
+
+        getCommand("shop").setExecutor((sender, command, label, args) -> {
+            if (sender instanceof org.bukkit.entity.Player player) {
+                shopManager.openShop(player);
+            } else {
+                sender.sendMessage("§cOnly players can use this command!");
+            }
+            return true;
+        });
+
+        getCommand("pay").setExecutor(bountyManager);
+        getCommand("bounty").setExecutor(bountyManager);
+
+        getCommand("bundledhelp").setExecutor(helpManager);
     }
 
     public static BundledEssential getInstance() {

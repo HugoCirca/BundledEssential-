@@ -1,7 +1,6 @@
 package com.bundleessential.updater;
 
 import com.bundleessential.BundledEssential;
-import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.*;
@@ -147,18 +146,6 @@ public class UpdateManager {
             in.close();
 
             plugin.getLogger().info("Update downloaded. It will be applied on next restart.");
-
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        Bukkit.broadcastMessage("§e[BundledEssential] §aA new update has been downloaded. The server will restart in 10 seconds.");
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                            Bukkit.shutdown();
-                        }, 200L);
-                    });
-                }
-            }.runTaskAsynchronously(plugin);
 
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to download update", e);

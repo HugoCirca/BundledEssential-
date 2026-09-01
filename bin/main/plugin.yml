@@ -40,15 +40,3 @@ commands:
   tradecancel:
     description: Cancel your pending trade requests
     usage: /tradecancel
-  shop:
-    description: Open the shop
-    usage: /shop
-  pay:
-    description: Pay a player
-    usage: /pay <player> <amount>
-  bounty:
-    description: Set or check a bounty on a player
-    usage: /bounty <player> [amount]
-  bundledhelp:
-    description: Show all available commands
-    usage: /bundledhelp
