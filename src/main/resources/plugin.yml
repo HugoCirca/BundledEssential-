@@ -70,3 +70,6 @@ commands:
   cosmetics:
     description: Open the cosmetics shop
     usage: /cosmetics [prefix|joinmessage|deathmessage|killeffect]
+  repair:
+    description: Repair your held item
+    usage: /repair [full]

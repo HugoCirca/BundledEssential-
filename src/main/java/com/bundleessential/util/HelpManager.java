@@ -40,6 +40,15 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("  §7/balance [player] §f- Check balance");
         sender.sendMessage("  §7/pay <player> <amount> §f- Pay a player");
         sender.sendMessage("  §7/bounty <player> [amount] §f- Set/check bounty");
+        sender.sendMessage("  §7/paytax §f- Pay accumulated taxes");
+        sender.sendMessage("  §7/repair [full] §f- Repair held item");
+        sender.sendMessage("");
+        sender.sendMessage("§e§lCosmetics");
+        sender.sendMessage("  §7/cosmetics §f- Open cosmetics shop");
+        sender.sendMessage("");
+        sender.sendMessage("§e§lOther");
+        sender.sendMessage("  §7/bundledhelp §f- Show this help");
+        sender.sendMessage("  §7/bundledupdate §f- Check for updates");
         sender.sendMessage("");
         sender.sendMessage("§6§l================================");
         return true;

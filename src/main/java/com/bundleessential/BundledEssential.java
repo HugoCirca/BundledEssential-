@@ -139,6 +139,54 @@ public class BundledEssential extends JavaPlugin {
         }
         if (balanceManager != null) {
             getCommand("balance").setExecutor(balanceManager);
+            getCommand("repair").setExecutor((sender, command, label, args) -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("§cOnly players can use this command!");
+                    return true;
+                }
+                if (balanceManager == null) {
+                    player.sendMessage("§cEconomy is disabled!");
+                    return true;
+                }
+                org.bukkit.inventory.ItemStack item = player.getInventory().getItemInMainHand();
+                if (item == null || item.getType() == org.bukkit.Material.AIR) {
+                    player.sendMessage("§cYou are not holding anything!");
+                    return true;
+                }
+                if (item.getType().getMaxDurability() <= 0) {
+                    player.sendMessage("§cThis item cannot be repaired!");
+                    return true;
+                }
+                int maxDur = item.getType().getMaxDurability();
+                int dur = item.getDurability();
+                if (dur == 0) {
+                    player.sendMessage("§aItem is already at full durability!");
+                    return true;
+                }
+                double durabilityPct = (double) dur / maxDur;
+                double baseCost = 5.0;
+                double cost = Math.round(baseCost * durabilityPct * 100.0) / 100.0;
+                if (cost < 0.50) cost = 0.50;
+                if (args.length > 0 && args[0].equalsIgnoreCase("full")) {
+                    if (balanceManager.removeBalance(player, cost)) {
+                        item.setDurability((short) 0);
+                        player.sendMessage("§aRepaired to full durability for §e$" + String.format("%.2f", cost));
+                    } else {
+                        player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", cost));
+                    }
+                } else {
+                    double singlePct = 1.0 / maxDur;
+                    double singleCost = Math.round(baseCost * singlePct * 100.0) / 100.0;
+                    if (singleCost < 0.10) singleCost = 0.10;
+                    if (balanceManager.removeBalance(player, singleCost)) {
+                        item.setDurability((short) Math.max(0, dur - 1));
+                        player.sendMessage("§aRepaired 1% durability for §e$" + String.format("%.2f", singleCost));
+                    } else {
+                        player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", singleCost));
+                    }
+                }
+                return true;
+            });
         }
         if (cosmeticsManager != null) {
             getCommand("cosmetics").setExecutor(cosmeticsManager);
