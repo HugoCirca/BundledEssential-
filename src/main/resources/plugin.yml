@@ -55,3 +55,9 @@ commands:
   balance:
     description: Check your balance or another player's balance
     usage: /balance [player]
+  sell:
+    description: Sell the item in your main hand
+    usage: /sell
+  sellgui:
+    description: Open the sell GUI
+    usage: /sellgui

@@ -35,6 +35,9 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("");
         sender.sendMessage("§e§lEconomy");
         sender.sendMessage("  §7/shop §f- Open the shop");
+        sender.sendMessage("  §7/sell §f- Sell item in hand");
+        sender.sendMessage("  §7/sellgui §f- Open sell GUI");
+        sender.sendMessage("  §7/balance [player] §f- Check balance");
         sender.sendMessage("  §7/pay <player> <amount> §f- Pay a player");
         sender.sendMessage("  §7/bounty <player> [amount] §f- Set/check bounty");
         sender.sendMessage("");

@@ -1,7 +1,6 @@
 package com.bundleessential.economy;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -17,56 +16,124 @@ import java.util.List;
 public class ShopManager implements Listener {
 
     private final BalanceManager balanceManager;
+    private final PriceManager priceManager;
 
-    public ShopManager(BalanceManager balanceManager) {
+    public ShopManager(BalanceManager balanceManager, PriceManager priceManager) {
         this.balanceManager = balanceManager;
+        this.priceManager = priceManager;
     }
 
     public void openShop(Player player) {
-        Inventory shop = Bukkit.createInventory(null, 27, "§6§lShop");
+        Inventory shop = Bukkit.createInventory(null, 54, "§6§lShop");
 
-        // Plank in the middle (slot 13) - click to go to logs
-        ItemStack plank = makeItem(Material.OAK_PLANKS, "§e§lLogs Shop", "§7Click to browse logs");
-        shop.setItem(13, plank);
+        // Categories
+        shop.setItem(10, makeItem(Material.OAK_LOG, "§e§lLogs", "§7Click to browse"));
+        shop.setItem(11, makeItem(Material.COBBLESTONE, "§e§lStone", "§7Click to browse"));
+        shop.setItem(12, makeItem(Material.DIAMOND_ORE, "§e§lOres", "§7Click to browse"));
+        shop.setItem(13, makeItem(Material.WHEAT, "§e§lCrops", "§7Click to browse"));
+        shop.setItem(14, makeItem(Material.BONE, "§e§lMob Drops", "§7Click to browse"));
+        shop.setItem(15, makeItem(Material.BRICKS, "§e§lBuilding", "§7Click to browse"));
+        shop.setItem(16, makeItem(Material.CRAFTING_TABLE, "§e§lDecoration", "§7Click to browse"));
 
-        // Decorative glass panes
+        // Sell section
+        shop.setItem(40, makeItem(Material.EMERALD, "§a§lSell Items", "§7Click to open sell menu"));
+
         ItemStack glass = makeItem(Material.BLACK_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) {
-            if (i != 13) shop.setItem(i, glass);
+        for (int i = 0; i < 54; i++) {
+            if (shop.getItem(i) == null) shop.setItem(i, glass);
         }
 
         player.openInventory(shop);
     }
 
-    private void openLogsShop(Player player) {
-        Inventory logs = Bukkit.createInventory(null, 27, "§6§lLogs Shop");
+    private void openCategory(Player player, String category, Material... materials) {
+        Inventory inv = Bukkit.createInventory(null, 54, "§6§l" + category + " Shop");
 
-        // Buy items (left side)
-        logs.setItem(10, makeItem(Material.OAK_LOG, "§aBuy Oak Log", "§ePrice: $5.00", "§7Click to buy"));
-        logs.setItem(11, makeItem(Material.BIRCH_LOG, "§aBuy Birch Log", "§ePrice: $5.00", "§7Click to buy"));
-        logs.setItem(12, makeItem(Material.SPRUCE_LOG, "§aBuy Spruce Log", "§ePrice: $5.00", "§7Click to buy"));
-        logs.setItem(13, makeItem(Material.JUNGLE_LOG, "§aBuy Jungle Log", "§ePrice: $5.00", "§7Click to buy"));
-        logs.setItem(14, makeItem(Material.ACACIA_LOG, "§aBuy Acacia Log", "§ePrice: $5.00", "§7Click to buy"));
-        logs.setItem(15, makeItem(Material.DARK_OAK_LOG, "§aBuy Dark Oak Log", "§ePrice: $5.00", "§7Click to buy"));
+        int buySlot = 10;
+        int sellSlot = 37;
 
-        // Sell items (bottom row)
-        logs.setItem(19, makeItem(Material.OAK_LOG, "§cSell Oak Log", "§eSell: $2.00", "§7Click to sell"));
-        logs.setItem(20, makeItem(Material.BIRCH_LOG, "§cSell Birch Log", "§eSell: $2.00", "§7Click to sell"));
-        logs.setItem(21, makeItem(Material.SPRUCE_LOG, "§cSell Spruce Log", "§eSell: $2.00", "§7Click to sell"));
-        logs.setItem(22, makeItem(Material.JUNGLE_LOG, "§cSell Jungle Log", "§eSell: $2.00", "§7Click to sell"));
-        logs.setItem(23, makeItem(Material.ACACIA_LOG, "§cSell Acacia Log", "§eSell: $2.00", "§7Click to sell"));
-        logs.setItem(24, makeItem(Material.DARK_OAK_LOG, "§cSell Dark Oak Log", "§eSell: $2.00", "§7Click to sell"));
+        for (Material mat : materials) {
+            if (buySlot <= 16) {
+                double buyPrice = priceManager.getBuyPrice(mat);
+                inv.setItem(buySlot, makeItem(mat, "§aBuy " + formatName(mat),
+                        "§ePrice: $" + String.format("%.2f", buyPrice),
+                        "§7Click to buy 1"));
+                buySlot++;
+            }
 
-        // Back button
-        logs.setItem(4, makeItem(Material.ARROW, "§cBack to Shop"));
-
-        // Glass fill
-        ItemStack glass = makeItem(Material.GRAY_STAINED_GLASS_PANE, " ");
-        for (int i = 0; i < 27; i++) {
-            if (logs.getItem(i) == null) logs.setItem(i, glass);
+            if (sellSlot <= 43) {
+                double sellPrice = priceManager.getSellPrice(mat);
+                inv.setItem(sellSlot, makeItem(mat, "§cSell " + formatName(mat),
+                        "§eSell: $" + String.format("%.2f", sellPrice),
+                        "§7Click to sell 1"));
+                sellSlot++;
+            }
         }
 
-        player.openInventory(logs);
+        inv.setItem(4, makeItem(Material.ARROW, "§cBack to Shop"));
+
+        ItemStack glass = makeItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) {
+            if (inv.getItem(i) == null) inv.setItem(i, glass);
+        }
+
+        player.openInventory(inv);
+    }
+
+    private void openLogsShop(Player player) {
+        openCategory(player, "Logs",
+                Material.OAK_LOG, Material.BIRCH_LOG, Material.SPRUCE_LOG,
+                Material.JUNGLE_LOG, Material.ACACIA_LOG, Material.DARK_OAK_LOG,
+                Material.MANGROVE_LOG, Material.CHERRY_LOG, Material.CRIMSON_STEM,
+                Material.WARPED_STEM);
+    }
+
+    private void openStoneShop(Player player) {
+        openCategory(player, "Stone",
+                Material.COBBLESTONE, Material.STONE, Material.DEEPSLATE,
+                Material.ANDESITE, Material.DIORITE, Material.GRANITE,
+                Material.TUFF, Material.DRIPSTONE_BLOCK, Material.CALCITE,
+                Material.SMOOTH_STONE, Material.STONE_BRICKS, Material.MOSSY_STONE_BRICKS);
+    }
+
+    private void openOresShop(Player player) {
+        openCategory(player, "Ores",
+                Material.COAL_ORE, Material.IRON_ORE, Material.COPPER_ORE,
+                Material.GOLD_ORE, Material.REDSTONE_ORE, Material.LAPIS_ORE,
+                Material.DIAMOND_ORE, Material.EMERALD_ORE, Material.NETHER_GOLD_ORE,
+                Material.NETHER_QUARTZ_ORE, Material.ANCIENT_DEBRIS);
+    }
+
+    private void openCropsShop(Player player) {
+        openCategory(player, "Crops",
+                Material.WHEAT, Material.CARROT, Material.POTATO,
+                Material.BEETROOT, Material.MELON, Material.PUMPKIN,
+                Material.SUGAR_CANE, Material.BAMBOO, Material.NETHER_WART,
+                Material.CHORUS_FRUIT, Material.APPLE);
+    }
+
+    private void openMobDropsShop(Player player) {
+        openCategory(player, "Mob Drops",
+                Material.ROTTEN_FLESH, Material.BONE, Material.STRING,
+                Material.SPIDER_EYE, Material.GUNPOWDER, Material.ENDER_PEARL,
+                Material.BLAZE_ROD, Material.MAGMA_CREAM, Material.GHAST_TEAR,
+                Material.PHANTOM_MEMBRANE, Material.SHULKER_SHELL);
+    }
+
+    private void openBuildingShop(Player player) {
+        openCategory(player, "Building",
+                Material.OAK_PLANKS, Material.OAK_FENCE, Material.OAK_STAIRS,
+                Material.OAK_SLAB, Material.OAK_DOOR, Material.OAK_TRAPDOOR,
+                Material.BRICKS, Material.BRICK_STAIRS, Material.BRICK_SLAB,
+                Material.NETHER_BRICKS, Material.OBSIDIAN, Material.GLASS);
+    }
+
+    private void openDecorationShop(Player player) {
+        openCategory(player, "Decoration",
+                Material.CRAFTING_TABLE, Material.FURNACE, Material.ANVIL,
+                Material.BREWING_STAND, Material.CHEST, Material.ENDER_CHEST,
+                Material.HOPPER, Material.TORCH, Material.LANTERN,
+                Material.CAMPFIRE, Material.BELL, Material.JUKEBOX);
     }
 
     @EventHandler
@@ -75,51 +142,70 @@ public class ShopManager implements Listener {
         String title = event.getView().getTitle();
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
+        if (clicked.getType() == Material.GRAY_STAINED_GLASS_PANE || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE) return;
+
+        event.setCancelled(true);
 
         // Main shop
         if (title.equals("§6§lShop")) {
-            event.setCancelled(true);
-            if (event.getSlot() == 13) {
-                openLogsShop(player);
+            switch (event.getSlot()) {
+                case 10 -> openLogsShop(player);
+                case 11 -> openStoneShop(player);
+                case 12 -> openOresShop(player);
+                case 13 -> openCropsShop(player);
+                case 14 -> openMobDropsShop(player);
+                case 15 -> openBuildingShop(player);
+                case 16 -> openDecorationShop(player);
+                case 40 -> new SellManager(balanceManager, priceManager).openSellGui(player);
             }
             return;
         }
 
-        // Logs shop
-        if (title.equals("§6§lLogs Shop")) {
-            event.setCancelled(true);
+        // Category shops
+        if (title.endsWith(" Shop")) {
             // Back button
             if (event.getSlot() == 4) {
                 openShop(player);
                 return;
             }
 
-            double price = 5.0;
-            double sellPrice = 2.0;
+            Material material = clicked.getType();
+            double buyPrice = priceManager.getBuyPrice(material);
+            double sellPrice = priceManager.getSellPrice(material);
 
-            // Buy logs (slots 10-15)
-            if (event.getSlot() >= 10 && event.getSlot() <= 15) {
-                if (balanceManager.removeBalance(player, price)) {
-                    player.getInventory().addItem(new ItemStack(clicked.getType(), 1));
-                    player.sendMessage("§aBought 1x " + clicked.getType().name().replace("_LOG", " Log") + " for $" + price);
+            // Buy (slots 10-16)
+            if (event.getSlot() >= 10 && event.getSlot() <= 16) {
+                if (balanceManager.removeBalance(player, buyPrice)) {
+                    player.getInventory().addItem(new ItemStack(material, 1));
+                    player.sendMessage("§aBought 1x " + formatName(material) + " for $" + String.format("%.2f", buyPrice));
                 } else {
-                    player.sendMessage("§cNot enough money!");
+                    player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", buyPrice));
                 }
                 return;
             }
 
-            // Sell logs (slots 19-24)
-            if (event.getSlot() >= 19 && event.getSlot() <= 24) {
-                Material logType = clicked.getType();
-                if (player.getInventory().containsAtLeast(new ItemStack(logType), 1)) {
-                    player.getInventory().removeItem(new ItemStack(logType, 1));
+            // Sell (slots 37-43)
+            if (event.getSlot() >= 37 && event.getSlot() <= 43) {
+                if (player.getInventory().containsAtLeast(new ItemStack(material), 1)) {
+                    player.getInventory().removeItem(new ItemStack(material, 1));
                     balanceManager.addBalance(player, sellPrice);
-                    player.sendMessage("§aSold 1x " + logType.name().replace("_LOG", " Log") + " for $" + sellPrice);
+                    player.sendMessage("§aSold 1x " + formatName(material) + " for $" + String.format("%.2f", sellPrice));
                 } else {
-                    player.sendMessage("§cYou don't have any " + logType.name().replace("_LOG", " Log") + "!");
+                    player.sendMessage("§cYou don't have any " + formatName(material) + "!");
                 }
             }
         }
+    }
+
+    private String formatName(Material material) {
+        String name = material.name().replace("_", " ").toLowerCase();
+        String[] words = name.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return sb.toString();
     }
 
     private ItemStack makeItem(Material material, String name, String... lore) {

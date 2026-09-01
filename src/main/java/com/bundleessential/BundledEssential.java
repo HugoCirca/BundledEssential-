@@ -3,6 +3,8 @@ package com.bundleessential;
 import com.bundleessential.back.BackManager;
 import com.bundleessential.economy.BalanceManager;
 import com.bundleessential.economy.BountyManager;
+import com.bundleessential.economy.PriceManager;
+import com.bundleessential.economy.SellManager;
 import com.bundleessential.economy.ShopManager;
 import com.bundleessential.home.HomeManager;
 import com.bundleessential.tpa.TpaManager;
@@ -25,9 +27,11 @@ public class BundledEssential extends JavaPlugin {
     private UpdateManager updateManager;
     private WaypointManager waypointManager;
     private BalanceManager balanceManager;
+    private PriceManager priceManager;
     private ShopManager shopManager;
     private BountyManager bountyManager;
     private HelpManager helpManager;
+    private SellManager sellManager;
 
     @Override
     public void onEnable() {
@@ -42,13 +46,16 @@ public class BundledEssential extends JavaPlugin {
         updateManager = new UpdateManager(this);
         waypointManager = new WaypointManager(this);
         balanceManager = new BalanceManager(this);
+        priceManager = new PriceManager(this);
         bountyManager = new BountyManager(balanceManager);
         balanceManager.setBountyManager(bountyManager);
-        shopManager = new ShopManager(balanceManager);
+        shopManager = new ShopManager(balanceManager, priceManager);
+        sellManager = new SellManager(balanceManager, priceManager);
         helpManager = new HelpManager();
 
         Bukkit.getPluginManager().registerEvents(balanceManager, this);
         Bukkit.getPluginManager().registerEvents(shopManager, this);
+        Bukkit.getPluginManager().registerEvents(sellManager, this);
 
         registerCommands();
         updateManager.startup();
@@ -90,6 +97,9 @@ public class BundledEssential extends JavaPlugin {
             }
             return true;
         });
+
+        getCommand("sell").setExecutor(sellManager);
+        getCommand("sellgui").setExecutor(sellManager);
 
         getCommand("pay").setExecutor(bountyManager);
         getCommand("bounty").setExecutor(bountyManager);
