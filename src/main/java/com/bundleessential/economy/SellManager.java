@@ -8,21 +8,21 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class SellManager implements CommandExecutor, Listener {
 
     private final BalanceManager balanceManager;
     private final PriceManager priceManager;
-    private final Map<String, Double> pendingSales = new HashMap<>();
+    private static final String SELL_GUI_TITLE = "§6§lSell Shop";
 
     public SellManager(BalanceManager balanceManager, PriceManager priceManager) {
         this.balanceManager = balanceManager;
@@ -64,17 +64,12 @@ public class SellManager implements CommandExecutor, Listener {
     }
 
     public void openSellGui(Player player) {
-        Inventory sellGui = Bukkit.createInventory(null, 54, "§6§lSell Shop - Drop items, close to sell");
+        Inventory sellGui = Bukkit.createInventory(null, 54, SELL_GUI_TITLE);
 
-        ItemStack glass = makeItem(Material.GRAY_STAINED_GLASS_PANE, "§7Drop items here");
-        for (int i = 0; i < 54; i++) {
-            sellGui.setItem(i, glass);
-        }
-
-        // Info item
         ItemStack info = makeItem(Material.EMERALD_BLOCK, "§a§lHow to sell",
                 "§7Put items in any slot",
-                "§7Close the inventory to sell",
+                "§7Close to sell everything",
+                "§7Shift-click to sell all of one item",
                 "§7Enchantments give bonus money!");
         sellGui.setItem(49, info);
 
@@ -82,10 +77,46 @@ public class SellManager implements CommandExecutor, Listener {
     }
 
     @EventHandler
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        String title = event.getView().getTitle();
+        if (!title.equals(SELL_GUI_TITLE)) return;
+
+        event.setCancelled(true);
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == Material.AIR) return;
+        if (clicked.getType() == Material.EMERALD_BLOCK) return;
+
+        // Shift-click: sell all of that item type from player inventory
+        if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
+            int count = 0;
+            for (ItemStack invItem : player.getInventory().getContents()) {
+                if (invItem != null && invItem.getType() == clicked.getType()) {
+                    count += invItem.getAmount();
+                }
+            }
+            if (count > 0) {
+                double priceEach = priceManager.getSellPriceWithEnchants(new ItemStack(clicked.getType()));
+                double total = Math.round(priceEach * count * 100.0) / 100.0;
+                player.getInventory().removeItem(new ItemStack(clicked.getType(), count));
+                balanceManager.addBalance(player, total);
+                player.sendMessage("§aSold §e" + count + "x " + formatMaterialName(clicked.getType()) + " §afor §e$" + String.format("%.2f", total));
+            }
+            return;
+        }
+
+        // Normal click: allow placing items into the sell GUI
+        if (event.getSlot() != 49) {
+            event.setCancelled(false);
+        }
+    }
+
+    @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
         String title = event.getView().getTitle();
-        if (!title.equals("§6§lSell Shop - Drop items, close to sell")) return;
+        if (!title.equals(SELL_GUI_TITLE)) return;
 
         Inventory inventory = event.getInventory();
         double totalEarned = 0.0;
@@ -94,7 +125,6 @@ public class SellManager implements CommandExecutor, Listener {
         for (int i = 0; i < inventory.getSize(); i++) {
             ItemStack item = inventory.getItem(i);
             if (item == null || item.getType() == Material.AIR) continue;
-            if (item.getType() == Material.GRAY_STAINED_GLASS_PANE) continue;
             if (item.getType() == Material.EMERALD_BLOCK) continue;
 
             int amount = item.getAmount();
