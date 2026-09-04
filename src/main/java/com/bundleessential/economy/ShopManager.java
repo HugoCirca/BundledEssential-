@@ -341,7 +341,10 @@ public class ShopManager implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         String title = event.getView().getTitle();
 
-        if (title.equals("§6§lShop") || title.endsWith(" Shop")) {
+        boolean isMain = isMainShop(title);
+        boolean isCategory = isCategoryShop(title);
+
+        if (isMain || isCategory) {
             event.setCancelled(true);
         }
 
@@ -349,7 +352,7 @@ public class ShopManager implements Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
         if (clicked.getType() == Material.GRAY_STAINED_GLASS_PANE || clicked.getType() == Material.BLACK_STAINED_GLASS_PANE) return;
 
-        if (title.equals("§6§lShop")) {
+        if (isMain) {
             switch (event.getSlot()) {
                 case 10 -> openLogsShop(player);
                 case 11 -> openStoneShop(player);
@@ -369,7 +372,12 @@ public class ShopManager implements Listener {
             return;
         }
 
-        if (title.endsWith(" Shop")) {
+        if (isCategory) {
+            // Ignore clicks in the player's own inventory while a category page is open
+            if (event.getRawSlot() >= event.getView().getTopInventory().getSize()) {
+                return;
+            }
+
             ShopPage pageData = playerPages.get(player.getUniqueId());
             if (pageData == null) {
                 openShop(player);
@@ -414,9 +422,18 @@ public class ShopManager implements Listener {
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         String title = event.getView().getTitle();
-        if (title.equals("§6§lShop") || title.endsWith(" Shop")) {
+        if (isMainShop(title) || isCategoryShop(title)) {
             event.setCancelled(true);
         }
+    }
+
+    private boolean isMainShop(String title) {
+        return title.equals("§6§lShop");
+    }
+
+    private boolean isCategoryShop(String title) {
+        // Category pages are created as "§6§l<Category> §7(Page X/Y)"
+        return title.startsWith("§6§l") && title.contains("§7(Page ");
     }
 
     private String formatName(Material material) {
