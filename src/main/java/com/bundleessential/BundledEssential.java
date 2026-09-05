@@ -9,6 +9,7 @@ import com.bundleessential.economy.SellManager;
 import com.bundleessential.economy.ShopManager;
 import com.bundleessential.level.LevelManager;
 import com.bundleessential.level.PlaytimeManager;
+import com.bundleessential.light.DynamicLightManager;
 import com.bundleessential.home.HomeManager;
 import com.bundleessential.tpa.TpaManager;
 import com.bundleessential.trade.TradeManager;
@@ -38,6 +39,7 @@ public class BundledEssential extends JavaPlugin {
     private HelpManager helpManager;
     private LevelManager levelManager;
     private PlaytimeManager playtimeManager;
+    private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
     private CosmeticsManager cosmeticsManager;
 
@@ -77,6 +79,9 @@ public class BundledEssential extends JavaPlugin {
             if (getConfig().getBoolean("playtime.enabled", true)) {
                 playtimeManager = new PlaytimeManager(this);
             }
+            if (getConfig().getBoolean("dynamic-light.enabled", true)) {
+                dynamicLightManager = new DynamicLightManager(this);
+            }
         }
         if (getConfig().getBoolean("cosmetics.enabled", false) && balanceManager != null) {
             cosmeticsManager = new CosmeticsManager(this, balanceManager);
@@ -91,6 +96,7 @@ public class BundledEssential extends JavaPlugin {
         if (playtimeManager != null) Bukkit.getPluginManager().registerEvents(playtimeManager, this);
         if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
         if (tradeManager != null) Bukkit.getPluginManager().registerEvents(tradeManager, this);
+        if (dynamicLightManager != null) Bukkit.getPluginManager().registerEvents(dynamicLightManager, this);
         if (cosmeticsManager != null) Bukkit.getPluginManager().registerEvents(cosmeticsManager, this);
 
         registerCommands();
@@ -112,6 +118,9 @@ public class BundledEssential extends JavaPlugin {
         }
         if (playtimeManager != null) {
             playtimeManager.savePlaytime();
+        }
+        if (dynamicLightManager != null) {
+            dynamicLightManager.removeAll();
         }
         getLogger().info("BundledEssential has been disabled!");
     }

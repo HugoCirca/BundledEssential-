@@ -18,6 +18,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
 | **Leveling** | `/level` |
 | **Playtime** | `/playtime` |
+| **Dynamic Light** | _(automatic — hold a light)_ |
 | **Help** | `/bundledhelp` |
 
 - **Auto-updater** — Checks for updates on startup, downloads and applies on next restart (console can use `/bundledupdate` too)
@@ -141,6 +142,15 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/playtime` | Check your total online time |
 | `/playtime <player>` | Check another player's time (works offline) |
 | `/playtime leaderboard` | Top 10 players by playtime |
+
+### Dynamic Light
+
+No command — just hold anything with a light property in either hand and it glows around you: torches, lanterns, lava buckets, glowstone, shroomlight, sea lanterns, froglights, end rods, jack o'lanterns, campfires, beacons, conduits, crying obsidian, amethyst buds and more.
+
+- Places a real invisible Light block at your feet (only ever replaces air)
+- Light follows you, updates its level, and is removed on logout/shutdown
+- No extra dynamic-lights plugin needed
+- Configurable in `config.yml` under `dynamic-light:` (enabled, interval-ticks)
 
 ### Help
 

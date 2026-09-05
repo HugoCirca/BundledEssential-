@@ -58,6 +58,11 @@ leveling:
 playtime:
   enabled: true
 
+# Dynamic Light (held torches, lanterns, lava buckets, etc. glow around you)
+dynamic-light:
+  enabled: true
+  interval-ticks: 10
+
 # Auto Updater
 updater:
   enabled: true
