@@ -32,6 +32,8 @@ public class ShopManager implements Listener {
     private final PriceManager priceManager;
     private final SellManager sellManager;
     private final Map<UUID, ShopPage> playerPages = new HashMap<>();
+    private final Map<UUID, Long> lastBuyTime = new HashMap<>();
+    private static final long BUY_DEBOUNCE_MS = 750L;
     private final Map<String, Material[]> categories = new LinkedHashMap<>();
     private final Set<UUID> searching = new HashSet<>();
     private final Set<UUID> chatPending = new HashSet<>();
@@ -763,6 +765,10 @@ public class ShopManager implements Listener {
 
             for (int slot : ITEM_SLOTS) {
                 if (event.getSlot() == slot) {
+                    // Bedrock/Geyser can fire one tap twice: ignore re-buys inside the window
+                    long now = System.currentTimeMillis();
+                    if (now - lastBuyTime.getOrDefault(player.getUniqueId(), 0L) < BUY_DEBOUNCE_MS) return;
+                    lastBuyTime.put(player.getUniqueId(), now);
                     if (balanceManager.removeBalance(player, buyPrice)) {
                         player.getInventory().addItem(new ItemStack(material, 1));
                         player.sendMessage("§aBought 1x " + formatName(material) + " for $" + Money.format(buyPrice));
