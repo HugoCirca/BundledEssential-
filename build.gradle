@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.bundleessential'
-version = '1.0.24'
+version = '1.0.25'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -22,7 +22,7 @@ dependencies {
 
 jar {
     archiveBaseName.set('BundledEssential')
-    archiveVersion.set('1.0.24')
+    archiveVersion.set('1.0.25')
 }
 
 processResources {
