@@ -113,6 +113,7 @@ public class BundledEssential extends JavaPlugin {
         registerCommands();
         if (updateManager != null) updateManager.startup();
 
+        getLogger().info("Registered commands: " + String.join(", ", getDescription().getCommands().keySet()));
         getLogger().info("BundledEssential has been enabled!");
     }
 
