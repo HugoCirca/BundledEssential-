@@ -89,6 +89,7 @@ public class BundledEssential extends JavaPlugin {
         if (levelManager != null) Bukkit.getPluginManager().registerEvents(levelManager, this);
         if (playtimeManager != null) Bukkit.getPluginManager().registerEvents(playtimeManager, this);
         if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
+        if (tradeManager != null) Bukkit.getPluginManager().registerEvents(tradeManager, this);
         if (cosmeticsManager != null) Bukkit.getPluginManager().registerEvents(cosmeticsManager, this);
 
         registerCommands();

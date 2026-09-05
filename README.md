@@ -73,10 +73,13 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | Command | Description |
 |---------|-------------|
 | `/trade <player>` | Send a trade request to a player |
-| `/tradeaccept` | Accept a pending trade request |
-| `/tradecancel` | Cancel your pending trade requests |
+| `/tradeaccept` | Accept a pending trade request (opens the trade GUI) |
+| `/tradecancel` | Cancel a pending request or an open trade |
 
 - Requests expire after **30 seconds**
+- Accepting opens a shared **trade GUI**: your offer on your side, glass divider in the middle, both players' heads at the bottom
+- Put items on your side, click the **green pane** to accept — changing any offer resets both accepts (anti-scam)
+- When **both** accept, items swap. Closing, `/tradecancel` or logging out returns everyone's items
 
 ### Economy
 
