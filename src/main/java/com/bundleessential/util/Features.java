@@ -17,6 +17,6 @@ public class Features {
     }
 
     public boolean isEnabled(String feature) {
-        return config.getBoolean(feature, !"cosmetics".equals(feature));
+        return config.getBoolean(feature, true);
     }
 }

@@ -1,7 +1,6 @@
 package com.bundleessential;
 
 import com.bundleessential.back.BackManager;
-import com.bundleessential.cosmetics.CosmeticsManager;
 import com.bundleessential.economy.BalanceManager;
 import com.bundleessential.economy.BountyManager;
 import com.bundleessential.economy.PriceManager;
@@ -43,7 +42,6 @@ public class BundledEssential extends JavaPlugin {
     private PlaytimeManager playtimeManager;
     private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
-    private CosmeticsManager cosmeticsManager;
 
     @Override
     public void onEnable() {
@@ -92,10 +90,6 @@ public class BundledEssential extends JavaPlugin {
                 dynamicLightManager = new DynamicLightManager(this);
             }
         }
-        if (features.isEnabled("cosmetics") && balanceManager != null) {
-            cosmeticsManager = new CosmeticsManager(this, balanceManager);
-        }
-
         helpManager = new HelpManager();
         if (features.isEnabled("updater")) {
             updateManager = new UpdateManager(this);
@@ -108,7 +102,6 @@ public class BundledEssential extends JavaPlugin {
         if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
         if (tradeManager != null) Bukkit.getPluginManager().registerEvents(tradeManager, this);
         if (dynamicLightManager != null) Bukkit.getPluginManager().registerEvents(dynamicLightManager, this);
-        if (cosmeticsManager != null) Bukkit.getPluginManager().registerEvents(cosmeticsManager, this);
 
         registerCommands();
         if (updateManager != null) updateManager.startup();
@@ -121,9 +114,6 @@ public class BundledEssential extends JavaPlugin {
     public void onDisable() {
         if (dataStorage != null) {
             dataStorage.saveAll();
-        }
-        if (cosmeticsManager != null) {
-            cosmeticsManager.saveCosmetics();
         }
         if (levelManager != null) {
             levelManager.saveLevels();
@@ -237,9 +227,6 @@ public class BundledEssential extends JavaPlugin {
         }
         if (playtimeManager != null) {
             getCommand("playtime").setExecutor(playtimeManager);
-        }
-        if (cosmeticsManager != null) {
-            getCommand("cosmetics").setExecutor(cosmeticsManager);
         }
         if (updateManager != null) {
             getCommand("bundledupdate").setExecutor(updateManager);
