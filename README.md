@@ -17,6 +17,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
 | **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
 | **Leveling** | `/level` |
+| **Jobs** | `/jobs` |
 | **Playtime** | `/playtime` |
 | **Dynamic Light** | _(automatic — hold a light)_ |
 | **Help** | `/bundledhelp` |
@@ -142,6 +143,21 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/playtime` | Check your total online time |
 | `/playtime <player>` | Check another player's time (works offline) |
 | `/playtime leaderboard` | Top 10 players by playtime |
+
+### Jobs
+
+| Command | Description |
+|---------|-------------|
+| `/jobs` | Show your job and earnings |
+| `/jobs list` | Show all jobs and payouts |
+| `/jobs join <name>` | Join miner, woodcutter, farmer, fisher or hunter |
+| `/jobs leave` | Leave your job (earnings kept) |
+| `/jobs info [player]` | Check job earnings |
+
+- One job at a time, earnings stack with playtime/mob rewards, no payout spam
+- **Miner** — ores pay instantly, any natural cave block (andesite, tuff, calcite, dirt, gravel...) pays small cash, plus a stone meter: every 64-128 stone/cobble/deepslate hits a $4-10 lucky break
+- **Woodcutter** — $0.50 per log, **Farmer** — ripe crops only, **Fisher** — per catch incl. treasure, **Hunter** — hostile mobs only (passives pay nothing)
+- Player-placed ores/logs/stone never pay, and plain stone pays only via the meter (no cobble-generator AFK farms)
 
 ### Dynamic Light
 

@@ -76,6 +76,10 @@ commands:
   level:
     description: Check your server level and XP progress
     usage: /level [player]
+  jobs:
+    description: Join jobs to earn money for actions
+    usage: /jobs [list|join|leave|info]
+    aliases: [job]
   playtime:
     description: Check playtime or view the leaderboard
     usage: /playtime [leaderboard|<player>]
