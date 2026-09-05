@@ -15,6 +15,7 @@ import com.bundleessential.tpa.TpaManager;
 import com.bundleessential.trade.TradeManager;
 import com.bundleessential.updater.UpdateManager;
 import com.bundleessential.util.DataStorage;
+import com.bundleessential.util.Features;
 import com.bundleessential.util.HelpManager;
 import com.bundleessential.util.Money;
 import com.bundleessential.waypoint.WaypointManager;
@@ -26,6 +27,7 @@ public class BundledEssential extends JavaPlugin {
 
     private static BundledEssential instance;
     private DataStorage dataStorage;
+    private Features features;
     private TpaManager tpaManager;
     private HomeManager homeManager;
     private BackManager backManager;
@@ -49,46 +51,55 @@ public class BundledEssential extends JavaPlugin {
         saveDefaultConfig();
 
         dataStorage = new DataStorage(this);
+        features = new Features(this);
 
-        if (getConfig().getBoolean("tpa.enabled", true)) {
+        if (features.isEnabled("tpa")) {
             tpaManager = new TpaManager(this);
         }
-        if (getConfig().getBoolean("home.enabled", true)) {
+        if (features.isEnabled("home")) {
             homeManager = new HomeManager(this);
         }
-        if (getConfig().getBoolean("back.enabled", true)) {
+        if (features.isEnabled("back")) {
             backManager = new BackManager(this);
         }
-        if (getConfig().getBoolean("trade.enabled", true)) {
+        if (features.isEnabled("trade")) {
             tradeManager = new TradeManager(this);
         }
-        if (getConfig().getBoolean("waypoints.enabled", true)) {
+        if (features.isEnabled("waypoints")) {
             waypointManager = new WaypointManager(this);
         }
-        if (getConfig().getBoolean("economy.enabled", true)) {
+        if (features.isEnabled("economy")) {
             balanceManager = new BalanceManager(this);
             priceManager = new PriceManager(this);
-            bountyManager = new BountyManager(balanceManager);
-            balanceManager.setBountyManager(bountyManager);
-            sellManager = new SellManager(balanceManager, priceManager);
-            shopManager = new ShopManager(balanceManager, priceManager, sellManager);
-            if (getConfig().getBoolean("leveling.enabled", true)) {
+            if (features.isEnabled("bounty") || features.isEnabled("pay")) {
+                bountyManager = new BountyManager(balanceManager);
+                balanceManager.setBountyManager(bountyManager);
+            }
+            if (features.isEnabled("sell")) {
+                sellManager = new SellManager(balanceManager, priceManager);
+            }
+            if (features.isEnabled("shop")) {
+                shopManager = new ShopManager(balanceManager, priceManager, sellManager);
+            }
+            if (features.isEnabled("leveling")) {
                 levelManager = new LevelManager(this);
                 balanceManager.setLevelManager(levelManager);
             }
-            if (getConfig().getBoolean("playtime.enabled", true)) {
+            if (features.isEnabled("playtime")) {
                 playtimeManager = new PlaytimeManager(this);
             }
-            if (getConfig().getBoolean("dynamic-light.enabled", true)) {
+            if (features.isEnabled("dynamic-light")) {
                 dynamicLightManager = new DynamicLightManager(this);
             }
         }
-        if (getConfig().getBoolean("cosmetics.enabled", false) && balanceManager != null) {
+        if (features.isEnabled("cosmetics") && balanceManager != null) {
             cosmeticsManager = new CosmeticsManager(this, balanceManager);
         }
 
-        updateManager = new UpdateManager(this);
         helpManager = new HelpManager();
+        if (features.isEnabled("updater")) {
+            updateManager = new UpdateManager(this);
+        }
 
         if (balanceManager != null) Bukkit.getPluginManager().registerEvents(balanceManager, this);
         if (shopManager != null) Bukkit.getPluginManager().registerEvents(shopManager, this);
@@ -100,7 +111,7 @@ public class BundledEssential extends JavaPlugin {
         if (cosmeticsManager != null) Bukkit.getPluginManager().registerEvents(cosmeticsManager, this);
 
         registerCommands();
-        updateManager.startup();
+        if (updateManager != null) updateManager.startup();
 
         getLogger().info("BundledEssential has been enabled!");
     }
@@ -162,9 +173,11 @@ public class BundledEssential extends JavaPlugin {
             getCommand("sell").setExecutor(sellManager);
             getCommand("sellgui").setExecutor(sellManager);
         }
-        if (bountyManager != null) {
+        if (bountyManager != null && features.isEnabled("pay")) {
             getCommand("pay").setExecutor(bountyManager);
             getCommand("paytax").setExecutor(bountyManager);
+        }
+        if (bountyManager != null && features.isEnabled("bounty")) {
             getCommand("bounty").setExecutor(bountyManager);
         }
         if (balanceManager != null) {
@@ -227,7 +240,9 @@ public class BundledEssential extends JavaPlugin {
         if (cosmeticsManager != null) {
             getCommand("cosmetics").setExecutor(cosmeticsManager);
         }
-        getCommand("bundledupdate").setExecutor(updateManager);
+        if (updateManager != null) {
+            getCommand("bundledupdate").setExecutor(updateManager);
+        }
         getCommand("bundledhelp").setExecutor(helpManager);
         getCommand("bundleversion").setExecutor((sender, command, label, args) -> {
             sender.sendMessage("§6§lBundledEssential §e v" + getDescription().getVersion());

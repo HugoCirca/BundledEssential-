@@ -213,6 +213,11 @@ Just push to `main` and a new release is created.
 
 ## Configuration
 
+Toggle every feature in `plugins/BundledEssential/features.yml` (tpa, home, back,
+waypoints, trade, economy, bounty, pay, shop, sell, leveling, playtime,
+dynamic-light, cosmetics, updater) — set `false` and restart to disable.
+Fine-tuning values stay in `config.yml`.
+
 All player data is stored automatically in:
 - `plugins/BundledEssential/homes.yml` - Home locations
 - `plugins/BundledEssential/config.yml` - Waypoint locations

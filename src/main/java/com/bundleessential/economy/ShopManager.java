@@ -113,7 +113,9 @@ public class ShopManager implements Listener {
 
         // NEW: 1.21 -> 26.2 items (Sulfur, Cinnabar, Pale, Resin, Copper, Happy Ghast...)
         shop.setItem(31, makeItem(icon("SULFUR", Material.NETHERITE_INGOT), "§d§lNew 1.21-26.2", "§7Copper, Tuff, Pale, Resin", "§7Sulfur, Cinnabar, Ghast...", "§7Click to browse"));
-        shop.setItem(40, makeItem(Material.EMERALD, "§a§lSell Items", "§7Click to open sell menu"));
+        if (sellManager != null) {
+            shop.setItem(40, makeItem(Material.EMERALD, "§a§lSell Items", "§7Click to open sell menu"));
+        }
         shop.setItem(49, makeItem(Material.COMPASS, "§b§lSearch Items", "§7Type a name, jump to matches", "§7Click to search"));
 
         ItemStack glass = makeItem(Material.BLACK_STAINED_GLASS_PANE, " ");
@@ -718,7 +720,9 @@ public class ShopManager implements Listener {
                 case 23 -> openNetherShop(player);
                 case 24 -> openEndShop(player);
                 case 31 -> openLatestShop(player);
-                case 40 -> sellManager.openSellGui(player);
+                case 40 -> {
+                    if (sellManager != null) sellManager.openSellGui(player);
+                }
                 case 49 -> openSearch(player);
             }
             return;

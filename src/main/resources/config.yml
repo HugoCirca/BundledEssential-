@@ -1,68 +1,17 @@
 # BundledEssential Configuration
-# Disable features you don't want (false = disabled)
-
-# TPA System
-tpa:
-  enabled: true
-
-# Home System
-home:
-  enabled: true
-
-# Back Command
-back:
-  enabled: true
-
-# Waypoint System
-waypoints:
-  enabled: true
-
-# Trade System
-trade:
-  enabled: true
+# Feature on/off toggles live in features.yml - edit that file to disable features.
 
 # Economy System
 economy:
-  enabled: true
   mob-kill-rewards: true
   playtime-rewards: true
 
-# Bounty System (includes 20% tax on claims)
-bounty:
-  enabled: true
-
-# Pay System (includes 5% tax)
-pay:
-  enabled: true
-
-# Shop System
-shop:
-  enabled: true
-
-# Sell System
-sell:
-  enabled: true
-
-# Cosmetics System (optional - disabled by default)
-cosmetics:
-  enabled: false
-
 # Leveling System (collect XP orbs to level up, higher level = bigger playtime prize)
 leveling:
-  enabled: true
   base-xp: 100.0
   multiplier: 1.5
   playtime-bonus-per-level: 0.10
 
-# Playtime System
-playtime:
-  enabled: true
-
 # Dynamic Light (held torches, lanterns, lava buckets, etc. glow around you)
 dynamic-light:
-  enabled: true
   interval-ticks: 10
-
-# Auto Updater
-updater:
-  enabled: true

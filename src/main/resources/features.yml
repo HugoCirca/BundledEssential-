@@ -1,0 +1,18 @@
+# BundledEssential Features
+# Set any feature to false to disable it, then restart the server.
+
+tpa: true
+home: true
+back: true
+waypoints: true
+trade: true
+economy: true
+bounty: true
+pay: true
+shop: true
+sell: true
+leveling: true
+playtime: true
+dynamic-light: true
+cosmetics: false
+updater: true
