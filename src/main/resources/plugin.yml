@@ -64,6 +64,9 @@ commands:
   bundledupdate:
     description: Check for and download updates
     usage: /bundledupdate
+  bundleversion:
+    description: Show the installed BundledEssential version
+    usage: /bundleversion
   paytax:
     description: Pay your accumulated taxes
     usage: /paytax

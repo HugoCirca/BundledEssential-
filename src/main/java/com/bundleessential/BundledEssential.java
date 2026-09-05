@@ -229,6 +229,10 @@ public class BundledEssential extends JavaPlugin {
         }
         getCommand("bundledupdate").setExecutor(updateManager);
         getCommand("bundledhelp").setExecutor(helpManager);
+        getCommand("bundleversion").setExecutor((sender, command, label, args) -> {
+            sender.sendMessage("§6§lBundledEssential §e v" + getDescription().getVersion());
+            return true;
+        });
     }
 
     public static BundledEssential getInstance() {

@@ -157,6 +157,7 @@ No command — just hold anything with a light property in either hand and it gl
 | Command | Description |
 |---------|-------------|
 | `/bundledhelp` | Show all available commands |
+| `/bundleversion` | Show the installed plugin version |
 
 ---
 
