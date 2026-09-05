@@ -15,6 +15,7 @@ import com.bundleessential.trade.TradeManager;
 import com.bundleessential.updater.UpdateManager;
 import com.bundleessential.util.DataStorage;
 import com.bundleessential.util.HelpManager;
+import com.bundleessential.util.Money;
 import com.bundleessential.waypoint.WaypointManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -190,9 +191,9 @@ public class BundledEssential extends JavaPlugin {
                 if (args.length > 0 && args[0].equalsIgnoreCase("full")) {
                     if (balanceManager.removeBalance(player, cost)) {
                         item.setDurability((short) 0);
-                        player.sendMessage("§aRepaired to full durability for §e$" + String.format("%.2f", cost));
+                        player.sendMessage("§aRepaired to full durability for §e$" + Money.format(cost));
                     } else {
-                        player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", cost));
+                        player.sendMessage("§cNot enough money! Need $" + Money.format(cost));
                     }
                 } else {
                     double singlePct = 1.0 / maxDur;
@@ -200,9 +201,9 @@ public class BundledEssential extends JavaPlugin {
                     if (singleCost < 0.10) singleCost = 0.10;
                     if (balanceManager.removeBalance(player, singleCost)) {
                         item.setDurability((short) Math.max(0, dur - 1));
-                        player.sendMessage("§aRepaired 1% durability for §e$" + String.format("%.2f", singleCost));
+                        player.sendMessage("§aRepaired 1% durability for §e$" + Money.format(singleCost));
                     } else {
-                        player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", singleCost));
+                        player.sendMessage("§cNot enough money! Need $" + Money.format(singleCost));
                     }
                 }
                 return true;

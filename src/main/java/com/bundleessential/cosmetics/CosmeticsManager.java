@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.bundleessential.economy.BalanceManager;
+import com.bundleessential.util.Money;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -295,7 +296,7 @@ public class CosmeticsManager implements CommandExecutor, Listener {
                     saveCosmetics();
                     player.sendMessage("§aYou bought the §e" + code + " §aprefix!");
                 } else {
-                    player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", price));
+                    player.sendMessage("§cNot enough money! Need $" + Money.format(price));
                 }
             }
             return;
@@ -321,7 +322,7 @@ public class CosmeticsManager implements CommandExecutor, Listener {
                     saveCosmetics();
                     player.sendMessage("§aYou bought the §e" + code + " §akill effect!");
                 } else {
-                    player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", price));
+                    player.sendMessage("§cNot enough money! Need $" + Money.format(price));
                 }
             }
         }
@@ -354,7 +355,7 @@ public class CosmeticsManager implements CommandExecutor, Listener {
             String display = entry.getValue()[0];
             double price = Double.parseDouble(entry.getValue()[1]);
             boolean owned = unlockedPrefix.contains(player.getUniqueId());
-            String status = owned ? "§aOwned" : "§ePrice: $" + String.format("%.2f", price);
+            String status = owned ? "§aOwned" : "§ePrice: $" + Money.format(price);
             gui.setItem(slot, makeItem(Material.NAME_TAG, display + code + " Prefix", status, owned ? "§7Click to set" : "§7Click to buy"));
             slot++;
         }
@@ -373,7 +374,7 @@ public class CosmeticsManager implements CommandExecutor, Listener {
             String name = entry.getValue()[0];
             double price = Double.parseDouble(entry.getValue()[1]);
             boolean owned = unlockedKillEffect.contains(player.getUniqueId());
-            String status = owned ? "§aOwned" : "§ePrice: $" + String.format("%.2f", price);
+            String status = owned ? "§aOwned" : "§ePrice: $" + Money.format(price);
             gui.setItem(slot, makeItem(Material.FIREWORK_ROCKET, "§e" + name, status, owned ? "§7Click to set" : "§7Click to buy"));
             slot++;
         }

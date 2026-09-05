@@ -1,6 +1,7 @@
 package com.bundleessential.economy;
 
 import com.bundleessential.level.LevelManager;
+import com.bundleessential.util.Money;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -134,9 +135,9 @@ public class BalanceManager implements Listener, CommandExecutor {
                     }
                     addBalance(player, reward);
                     if (level > 1) {
-                        player.sendMessage("§a[Playtime] §e+$" + String.format("%.2f", reward) + " §7(Lv " + level + " bonus +" + (int) Math.round((mult - 1.0) * 100) + "%)");
+                        player.sendMessage("§a[Playtime] §e+$" + Money.format(reward) + " §7(Lv " + level + " bonus +" + (int) Math.round((mult - 1.0) * 100) + "%)");
                     } else {
-                        player.sendMessage("§a[Playtime] §e+$" + String.format("%.2f", reward));
+                        player.sendMessage("§a[Playtime] §e+$" + Money.format(reward));
                     }
                 }
             }
@@ -152,7 +153,7 @@ public class BalanceManager implements Listener, CommandExecutor {
 
         Score line1 = obj.getScore("=============");
         line1.setScore(3);
-        Score line2 = obj.getScore("§fMoney: §a$" + String.format("%.2f", getBalance(player)));
+        Score line2 = obj.getScore("§fMoney: §a$" + Money.format(getBalance(player)));
         line2.setScore(2);
         Score line3 = obj.getScore(" ");
         line3.setScore(1);
@@ -185,7 +186,7 @@ public class BalanceManager implements Listener, CommandExecutor {
             double reward = Math.round(random.nextDouble() * MAX_MOB_REWARD * 100.0) / 100.0;
             if (reward < 0.01) reward = 0.01;
             addBalance(killer, reward);
-            killer.sendMessage("§a[Kill] §e+$" + String.format("%.2f", reward));
+            killer.sendMessage("§a[Kill] §e+$" + Money.format(reward));
         }
     }
 
@@ -196,14 +197,14 @@ public class BalanceManager implements Listener, CommandExecutor {
                 sender.sendMessage("§cOnly players can use this command!");
                 return true;
             }
-            player.sendMessage("§6Your balance: §a$" + String.format("%.2f", getBalance(player)));
+            player.sendMessage("§6Your balance: §a$" + Money.format(getBalance(player)));
         } else {
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null) {
                 sender.sendMessage("§cPlayer not found or offline!");
                 return true;
             }
-            sender.sendMessage("§6" + target.getName() + "'s balance: §a$" + String.format("%.2f", getBalance(target)));
+            sender.sendMessage("§6" + target.getName() + "'s balance: §a$" + Money.format(getBalance(target)));
         }
         return true;
     }

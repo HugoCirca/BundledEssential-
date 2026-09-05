@@ -1,5 +1,6 @@
 package com.bundleessential.economy;
 
+import com.bundleessential.util.Money;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -145,7 +146,7 @@ public class ShopManager implements Listener {
             Material mat = materials[i];
             double buyPrice = priceManager.getBuyPrice(mat);
             inv.setItem(ITEM_SLOTS[slotIndex], makeItem(mat, "§a" + formatName(mat),
-                    "§ePrice: $" + String.format("%.2f", buyPrice),
+                    "§ePrice: $" + Money.format(buyPrice),
                     "§7Click to buy 1"));
         }
 
@@ -760,9 +761,9 @@ public class ShopManager implements Listener {
                 if (event.getSlot() == slot) {
                     if (balanceManager.removeBalance(player, buyPrice)) {
                         player.getInventory().addItem(new ItemStack(material, 1));
-                        player.sendMessage("§aBought 1x " + formatName(material) + " for $" + String.format("%.2f", buyPrice));
+                        player.sendMessage("§aBought 1x " + formatName(material) + " for $" + Money.format(buyPrice));
                     } else {
-                        player.sendMessage("§cNot enough money! Need $" + String.format("%.2f", buyPrice));
+                        player.sendMessage("§cNot enough money! Need $" + Money.format(buyPrice));
                     }
                     return;
                 }

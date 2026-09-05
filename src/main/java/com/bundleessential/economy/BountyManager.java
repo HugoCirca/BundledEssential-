@@ -1,5 +1,6 @@
 package com.bundleessential.economy;
 
+import com.bundleessential.util.Money;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -87,8 +88,8 @@ public class BountyManager implements CommandExecutor {
         if (balanceManager.removeBalance(player, amount)) {
             balanceManager.addBalance(target, afterTax);
             unpaidTaxes.merge(player.getUniqueId(), tax, Double::sum);
-            player.sendMessage("§aYou paid §e$" + String.format("%.2f", amount) + " §ato §e" + target.getName());
-            target.sendMessage("§aYou received §e$" + String.format("%.2f", afterTax) + " §afrom §e" + player.getName());
+            player.sendMessage("§aYou paid §e$" + Money.format(amount) + " §ato §e" + target.getName());
+            target.sendMessage("§aYou received §e$" + Money.format(afterTax) + " §afrom §e" + player.getName());
         } else {
             player.sendMessage("§cNot enough money!");
         }
@@ -109,9 +110,9 @@ public class BountyManager implements CommandExecutor {
         if (balanceManager.removeBalance(player, owed)) {
             unpaidTaxes.remove(player.getUniqueId());
             lastTaxTime.put(player.getUniqueId(), System.currentTimeMillis());
-            player.sendMessage("§aYou paid §e$" + String.format("%.2f", owed) + " §ain taxes!");
+            player.sendMessage("§aYou paid §e$" + Money.format(owed) + " §ain taxes!");
         } else {
-            player.sendMessage("§cNot enough money! You owe §e$" + String.format("%.2f", owed) + "§c in taxes.");
+            player.sendMessage("§cNot enough money! You owe §e$" + Money.format(owed) + "§c in taxes.");
         }
     }
 
@@ -124,7 +125,7 @@ public class BountyManager implements CommandExecutor {
 
         double bounty = bounties.getOrDefault(target.getUniqueId(), 0.0);
         if (bounty > 0) {
-            sender.sendMessage("§e" + target.getName() + " §chas a bounty of §a$" + String.format("%.2f", bounty));
+            sender.sendMessage("§e" + target.getName() + " §chas a bounty of §a$" + Money.format(bounty));
         } else {
             sender.sendMessage("§e" + target.getName() + " §7has no bounty.");
         }
@@ -160,9 +161,9 @@ public class BountyManager implements CommandExecutor {
 
         if (balanceManager.removeBalance(player, amount)) {
             bounties.merge(target.getUniqueId(), amount, Double::sum);
-            player.sendMessage("§aYou placed a §e$" + String.format("%.2f", amount) + " §abounty on §e" + target.getName());
-            target.sendMessage("§cA bounty of §e$" + String.format("%.2f", amount) + " §chas been placed on you!");
-            Bukkit.broadcastMessage("§6[Bounty] §e" + player.getName() + " §cplaced a §e$" + String.format("%.2f", amount) + " §cbounty on §e" + target.getName());
+            player.sendMessage("§aYou placed a §e$" + Money.format(amount) + " §abounty on §e" + target.getName());
+            target.sendMessage("§cA bounty of §e$" + Money.format(amount) + " §chas been placed on you!");
+            Bukkit.broadcastMessage("§6[Bounty] §e" + player.getName() + " §cplaced a §e$" + Money.format(amount) + " §cbounty on §e" + target.getName());
         } else {
             player.sendMessage("§cNot enough money!");
         }
@@ -175,8 +176,8 @@ public class BountyManager implements CommandExecutor {
             double payout = Math.round((bounty - tax) * 100.0) / 100.0;
             balanceManager.addBalance(killer, payout);
             unpaidTaxes.merge(killer.getUniqueId(), tax, Double::sum);
-            killer.sendMessage("§aYou claimed the §e$" + String.format("%.2f", bounty) + " §abounty on §e" + victim.getName());
-            Bukkit.broadcastMessage("§6[Bounty] §e" + killer.getName() + " §ahas claimed the §e$" + String.format("%.2f", bounty) + " §abounty on §e" + victim.getName());
+            killer.sendMessage("§aYou claimed the §e$" + Money.format(bounty) + " §abounty on §e" + victim.getName());
+            Bukkit.broadcastMessage("§6[Bounty] §e" + killer.getName() + " §ahas claimed the §e$" + Money.format(bounty) + " §abounty on §e" + victim.getName());
         }
     }
 
@@ -199,7 +200,7 @@ public class BountyManager implements CommandExecutor {
                     if (owed > 0) {
                         long last = lastTaxTime.getOrDefault(uuid, 0L);
                         if (now - last >= TAX_CHECK_INTERVAL) {
-                            player.sendMessage("§c§l[Taxes] §eYou owe $" + String.format("%.2f", owed) + " §7in taxes. §a/paytax");
+                            player.sendMessage("§c§l[Taxes] §eYou owe $" + Money.format(owed) + " §7in taxes. §a/paytax");
                             lastTaxTime.put(uuid, now);
                         }
                     }

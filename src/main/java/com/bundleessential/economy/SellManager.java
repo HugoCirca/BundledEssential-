@@ -1,5 +1,6 @@
 package com.bundleessential.economy;
 
+import com.bundleessential.util.Money;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -57,9 +58,9 @@ public class SellManager implements CommandExecutor, Listener {
         balanceManager.addBalance(player, total);
         player.getInventory().setItemInMainHand(null);
 
-        player.sendMessage("§aSold §e" + amount + "x " + formatMaterialName(item.getType()) + " §afor §e$" + String.format("%.2f", total));
+        player.sendMessage("§aSold §e" + amount + "x " + formatMaterialName(item.getType()) + " §afor §e$" + Money.format(total));
         if (priceManager.getEnchantmentBonus(item) > 0) {
-            player.sendMessage("§7(Enchantment bonus: §a+$" + String.format("%.2f", priceManager.getEnchantmentBonus(item) * amount) + "§7)");
+            player.sendMessage("§7(Enchantment bonus: §a+$" + Money.format(priceManager.getEnchantmentBonus(item) * amount) + "§7)");
         }
     }
 
@@ -101,7 +102,7 @@ public class SellManager implements CommandExecutor, Listener {
                 double total = Math.round(priceEach * count * 100.0) / 100.0;
                 player.getInventory().removeItem(new ItemStack(clicked.getType(), count));
                 balanceManager.addBalance(player, total);
-                player.sendMessage("§aSold §e" + count + "x " + formatMaterialName(clicked.getType()) + " §afor §e$" + String.format("%.2f", total));
+                player.sendMessage("§aSold §e" + count + "x " + formatMaterialName(clicked.getType()) + " §afor §e$" + Money.format(total));
             }
             return;
         }
@@ -137,7 +138,7 @@ public class SellManager implements CommandExecutor, Listener {
         if (totalItems > 0) {
             totalEarned = Math.round(totalEarned * 100.0) / 100.0;
             balanceManager.addBalance(player, totalEarned);
-            player.sendMessage("§aSold §e" + totalItems + " items §afor §e$" + String.format("%.2f", totalEarned) + "§a!");
+            player.sendMessage("§aSold §e" + totalItems + " items §afor §e$" + Money.format(totalEarned) + "§a!");
         }
     }
 
