@@ -4,7 +4,6 @@ import com.bundleessential.BundledEssential;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.*;
@@ -31,22 +30,17 @@ public class UpdateManager implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cOnly players can use this command!");
+        if (!sender.hasPermission("bundleessential.update")) {
+            sender.sendMessage("§cNo permission!");
             return true;
         }
 
-        if (!player.hasPermission("bundleessential.update")) {
-            player.sendMessage("§cNo permission!");
-            return true;
-        }
-
-        player.sendMessage("§eChecking for updates...");
-        checkForUpdateManual(player);
+        sender.sendMessage("§eChecking for updates...");
+        checkForUpdateManual(sender);
         return true;
     }
 
-    private void checkForUpdateManual(Player player) {
+    private void checkForUpdateManual(CommandSender sender) {
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -54,31 +48,31 @@ public class UpdateManager implements CommandExecutor {
                     String currentVersion = plugin.getDescription().getVersion();
                     String latestTag = getLatestTag();
                     if (latestTag == null) {
-                        player.sendMessage("§cFailed to check for updates.");
+                        sender.sendMessage("§cFailed to check for updates.");
                         return;
                     }
 
                     String latestVersion = latestTag.replace("v", "");
 
                     if (latestVersion.equals(currentVersion)) {
-                        player.sendMessage("§aYou are already on the latest version (v" + currentVersion + ")");
+                        sender.sendMessage("§aYou are already on the latest version (v" + currentVersion + ")");
                         return;
                     }
 
                     if (isNewerVersion(latestVersion, currentVersion)) {
-                        player.sendMessage("§eNew update found: v" + latestVersion + " (current: " + currentVersion + ")");
-                        player.sendMessage("§eDownloading...");
+                        sender.sendMessage("§eNew update found: v" + latestVersion + " (current: " + currentVersion + ")");
+                        sender.sendMessage("§eDownloading...");
                         boolean success = downloadUpdate(latestTag);
                         if (success) {
-                            player.sendMessage("§aUpdate downloaded! It will be applied on next restart.");
+                            sender.sendMessage("§aUpdate downloaded! It will be applied on next restart.");
                         } else {
-                            player.sendMessage("§cFailed to download update.");
+                            sender.sendMessage("§cFailed to download update.");
                         }
                     } else {
-                        player.sendMessage("§cYou are running a newer version than the latest release.");
+                        sender.sendMessage("§cYou are running a newer version than the latest release.");
                     }
                 } catch (Exception e) {
-                    player.sendMessage("§cFailed to check for updates: " + e.getMessage());
+                    sender.sendMessage("§cFailed to check for updates: " + e.getMessage());
                 }
             }
         }.runTaskAsynchronously(plugin);
