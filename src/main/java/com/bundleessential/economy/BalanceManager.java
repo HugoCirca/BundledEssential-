@@ -1,5 +1,6 @@
 package com.bundleessential.economy;
 
+import com.bundleessential.level.LevelManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -30,6 +31,7 @@ public class BalanceManager implements Listener, CommandExecutor {
     private final JsonObject balances = new JsonObject();
     private final Random random = new Random();
     private BountyManager bountyManager;
+    private LevelManager levelManager;
 
     private static final double MAX_MOB_REWARD = 10.0;
     private static final double MIN_PLAYTIME_REWARD = 1.0;
@@ -45,6 +47,10 @@ public class BalanceManager implements Listener, CommandExecutor {
 
     public void setBountyManager(BountyManager bountyManager) {
         this.bountyManager = bountyManager;
+    }
+
+    public void setLevelManager(LevelManager levelManager) {
+        this.levelManager = levelManager;
     }
 
     private void loadBalances() {
@@ -119,8 +125,19 @@ public class BalanceManager implements Listener, CommandExecutor {
             public void run() {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     double reward = Math.round((MIN_PLAYTIME_REWARD + random.nextDouble() * (MAX_PLAYTIME_REWARD - MIN_PLAYTIME_REWARD)) * 100.0) / 100.0;
+                    double mult = 1.0;
+                    int level = 0;
+                    if (levelManager != null) {
+                        mult = levelManager.getPlaytimeMultiplier(player);
+                        level = levelManager.getLevel(player);
+                        reward = Math.round(reward * mult * 100.0) / 100.0;
+                    }
                     addBalance(player, reward);
-                    player.sendMessage("§a[Playtime] §e+$" + String.format("%.2f", reward));
+                    if (level > 1) {
+                        player.sendMessage("§a[Playtime] §e+$" + String.format("%.2f", reward) + " §7(Lv " + level + " bonus +" + (int) Math.round((mult - 1.0) * 100) + "%)");
+                    } else {
+                        player.sendMessage("§a[Playtime] §e+$" + String.format("%.2f", reward));
+                    }
                 }
             }
         }.runTaskTimer(plugin, PLAYTIME_INTERVAL_TICKS, PLAYTIME_INTERVAL_TICKS);

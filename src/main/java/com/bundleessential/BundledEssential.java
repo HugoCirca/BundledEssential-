@@ -7,6 +7,8 @@ import com.bundleessential.economy.BountyManager;
 import com.bundleessential.economy.PriceManager;
 import com.bundleessential.economy.SellManager;
 import com.bundleessential.economy.ShopManager;
+import com.bundleessential.level.LevelManager;
+import com.bundleessential.level.PlaytimeManager;
 import com.bundleessential.home.HomeManager;
 import com.bundleessential.tpa.TpaManager;
 import com.bundleessential.trade.TradeManager;
@@ -33,6 +35,8 @@ public class BundledEssential extends JavaPlugin {
     private ShopManager shopManager;
     private BountyManager bountyManager;
     private HelpManager helpManager;
+    private LevelManager levelManager;
+    private PlaytimeManager playtimeManager;
     private SellManager sellManager;
     private CosmeticsManager cosmeticsManager;
 
@@ -65,6 +69,13 @@ public class BundledEssential extends JavaPlugin {
             balanceManager.setBountyManager(bountyManager);
             sellManager = new SellManager(balanceManager, priceManager);
             shopManager = new ShopManager(balanceManager, priceManager, sellManager);
+            if (getConfig().getBoolean("leveling.enabled", true)) {
+                levelManager = new LevelManager(this);
+                balanceManager.setLevelManager(levelManager);
+            }
+            if (getConfig().getBoolean("playtime.enabled", true)) {
+                playtimeManager = new PlaytimeManager(this);
+            }
         }
         if (getConfig().getBoolean("cosmetics.enabled", false) && balanceManager != null) {
             cosmeticsManager = new CosmeticsManager(this, balanceManager);
@@ -75,6 +86,8 @@ public class BundledEssential extends JavaPlugin {
 
         if (balanceManager != null) Bukkit.getPluginManager().registerEvents(balanceManager, this);
         if (shopManager != null) Bukkit.getPluginManager().registerEvents(shopManager, this);
+        if (levelManager != null) Bukkit.getPluginManager().registerEvents(levelManager, this);
+        if (playtimeManager != null) Bukkit.getPluginManager().registerEvents(playtimeManager, this);
         if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
         if (cosmeticsManager != null) Bukkit.getPluginManager().registerEvents(cosmeticsManager, this);
 
@@ -91,6 +104,12 @@ public class BundledEssential extends JavaPlugin {
         }
         if (cosmeticsManager != null) {
             cosmeticsManager.saveCosmetics();
+        }
+        if (levelManager != null) {
+            levelManager.saveLevels();
+        }
+        if (playtimeManager != null) {
+            playtimeManager.savePlaytime();
         }
         getLogger().info("BundledEssential has been disabled!");
     }
@@ -187,6 +206,12 @@ public class BundledEssential extends JavaPlugin {
                 }
                 return true;
             });
+        }
+        if (levelManager != null) {
+            getCommand("level").setExecutor(levelManager);
+        }
+        if (playtimeManager != null) {
+            getCommand("playtime").setExecutor(playtimeManager);
         }
         if (cosmeticsManager != null) {
             getCommand("cosmetics").setExecutor(cosmeticsManager);

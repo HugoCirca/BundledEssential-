@@ -73,3 +73,9 @@ commands:
   repair:
     description: Repair your held item
     usage: /repair [full]
+  level:
+    description: Check your server level and XP progress
+    usage: /level [player]
+  playtime:
+    description: Check playtime or view the leaderboard
+    usage: /playtime [leaderboard|<player>]

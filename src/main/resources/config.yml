@@ -47,6 +47,17 @@ sell:
 cosmetics:
   enabled: false
 
+# Leveling System (collect XP orbs to level up, higher level = bigger playtime prize)
+leveling:
+  enabled: true
+  base-xp: 100.0
+  multiplier: 1.5
+  playtime-bonus-per-level: 0.10
+
+# Playtime System
+playtime:
+  enabled: true
+
 # Auto Updater
 updater:
   enabled: true
