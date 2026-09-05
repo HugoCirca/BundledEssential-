@@ -169,8 +169,8 @@ public class BountyManager implements CommandExecutor {
     }
 
     public void claimBounty(Player killer, Player victim) {
-        double bounty = bounties.remove(victim.getUniqueId());
-        if (bounty > 0) {
+        Double bounty = bounties.remove(victim.getUniqueId());
+        if (bounty != null && bounty > 0) {
             double tax = Math.round(bounty * BOUNTY_TAX_RATE * 100.0) / 100.0;
             double payout = Math.round((bounty - tax) * 100.0) / 100.0;
             balanceManager.addBalance(killer, payout);

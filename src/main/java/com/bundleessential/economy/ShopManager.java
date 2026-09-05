@@ -6,15 +6,23 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class ShopManager implements Listener {
@@ -23,6 +31,9 @@ public class ShopManager implements Listener {
     private final PriceManager priceManager;
     private final SellManager sellManager;
     private final Map<UUID, ShopPage> playerPages = new HashMap<>();
+    private final Map<String, Material[]> categories = new LinkedHashMap<>();
+    private final Set<UUID> searching = new HashSet<>();
+    private final Set<UUID> chatPending = new HashSet<>();
 
     private static final int ITEMS_PER_PAGE = 21;
     private static final int[] ITEM_SLOTS = {
@@ -30,11 +41,26 @@ public class ShopManager implements Listener {
         19,20,21,22,23,24,25,
         28,29,30,31,32,33,34
     };
+    private static final String SEARCH_TITLE = "§b§lSearch items";
 
     public ShopManager(BalanceManager balanceManager, PriceManager priceManager, SellManager sellManager) {
         this.balanceManager = balanceManager;
         this.priceManager = priceManager;
         this.sellManager = sellManager;
+        categories.put("Logs", logsItems());
+        categories.put("Stone", stoneItems());
+        categories.put("Ores", oresItems());
+        categories.put("Crops", cropsItems());
+        categories.put("Mob Drops", mobDropsItems());
+        categories.put("Building", buildingItems());
+        categories.put("Decoration", decorationItems());
+        categories.put("Food", foodItems());
+        categories.put("Tools", toolsItems());
+        categories.put("Armor", armorItems());
+        categories.put("Redstone", redstoneItems());
+        categories.put("Nether", netherItems());
+        categories.put("End", endItems());
+        categories.put("New 1.21-26.2", latestItems());
     }
 
     /**
@@ -62,6 +88,10 @@ public class ShopManager implements Listener {
         return fallback;
     }
 
+    private Plugin getPlugin() {
+        return Bukkit.getPluginManager().getPlugin("BundledEssential");
+    }
+
     public void openShop(Player player) {
         Inventory shop = Bukkit.createInventory(null, 54, "§6§lShop");
 
@@ -83,6 +113,7 @@ public class ShopManager implements Listener {
         // NEW: 1.21 -> 26.2 items (Sulfur, Cinnabar, Pale, Resin, Copper, Happy Ghast...)
         shop.setItem(31, makeItem(icon("SULFUR", Material.NETHERITE_INGOT), "§d§lNew 1.21-26.2", "§7Copper, Tuff, Pale, Resin", "§7Sulfur, Cinnabar, Ghast...", "§7Click to browse"));
         shop.setItem(40, makeItem(Material.EMERALD, "§a§lSell Items", "§7Click to open sell menu"));
+        shop.setItem(49, makeItem(Material.COMPASS, "§b§lSearch Items", "§7Type a name, jump to matches", "§7Click to search"));
 
         ItemStack glass = makeItem(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
@@ -137,8 +168,57 @@ public class ShopManager implements Listener {
         player.openInventory(inv);
     }
 
-    private void openLogsShop(Player player) {
-        openCategoryPage(player, "Logs", mats(
+    private void openSearch(Player player) {
+        searching.add(player.getUniqueId());
+        Inventory anvil = Bukkit.createInventory(null, InventoryType.ANVIL, SEARCH_TITLE);
+        anvil.setItem(0, makeItem(Material.PAPER, "§7Rename me to search..."));
+        player.openInventory(anvil);
+        player.sendMessage("§bType what to search in the anvil, then click the result. §7(Empty = type in chat instead)");
+    }
+
+    private Material[] searchItems(String query) {
+        String q = query.toLowerCase().replace(" ", "").replace("_", "");
+        Set<Material> out = new LinkedHashSet<>();
+        if (q.isEmpty()) return new Material[0];
+        for (Material[] arr : categories.values()) {
+            for (Material m : arr) {
+                String id = m.name().toLowerCase().replace("_", "");
+                String nice = formatName(m).toLowerCase().replace(" ", "");
+                if (id.contains(q) || nice.contains(q)) out.add(m);
+            }
+        }
+        return out.toArray(new Material[0]);
+    }
+
+    private void showResults(Player player, String query) {
+        Material[] matches = searchItems(query);
+        if (matches.length == 0) {
+            player.sendMessage("§cNo items found for '§e" + query + "§c'.");
+            openShop(player);
+            return;
+        }
+        String q = query.length() > 24 ? query.substring(0, 24) : query;
+        openCategoryPage(player, "Search: " + q, matches, 0);
+        player.sendMessage("§aFound §e" + matches.length + " §aitem(s) for '§e" + query + "§a'.");
+    }
+
+    /** Rename text of an anvil inventory via reflection (Paper-only API, null when unsupported). */
+    private String getAnvilText(Inventory anvil) {
+        try {
+            java.lang.reflect.Method m = anvil.getClass().getMethod("getRenameText");
+            Object o = m.invoke(anvil);
+            return o == null ? null : o.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean isSearchAnvil(String title) {
+        return SEARCH_TITLE.equals(title);
+    }
+
+    private Material[] logsItems() {
+        return mats(
             "OAK_LOG","SPRUCE_LOG","BIRCH_LOG","JUNGLE_LOG","ACACIA_LOG","DARK_OAK_LOG",
             "MANGROVE_LOG","CHERRY_LOG","PALE_OAK_LOG",
             "CRIMSON_STEM","WARPED_STEM",
@@ -158,11 +238,15 @@ public class ShopManager implements Listener {
             "OAK_LEAVES","SPRUCE_LEAVES","BIRCH_LEAVES","JUNGLE_LEAVES","ACACIA_LEAVES","DARK_OAK_LEAVES",
             "MANGROVE_LEAVES","CHERRY_LEAVES","PALE_OAK_LEAVES","AZALEA_LEAVES","FLOWERING_AZALEA_LEAVES",
             "MANGROVE_ROOTS","MUDDY_MANGROVE_ROOTS","AZALEA","FLOWERING_AZALEA","STICK"
-        ), 0);
+        );
     }
 
-    private void openStoneShop(Player player) {
-        openCategoryPage(player, "Stone", mats(
+    private void openLogsShop(Player player) {
+        openCategoryPage(player, "Logs", logsItems(), 0);
+    }
+
+    private Material[] stoneItems() {
+        return mats(
             "STONE","COBBLESTONE","MOSSY_COBBLESTONE","SMOOTH_STONE",
             "GRANITE","POLISHED_GRANITE","DIORITE","POLISHED_DIORITE","ANDESITE","POLISHED_ANDESITE",
             "DEEPSLATE","COBBLED_DEEPSLATE","POLISHED_DEEPSLATE","DEEPSLATE_BRICKS","CRACKED_DEEPSLATE_BRICKS",
@@ -189,11 +273,15 @@ public class ShopManager implements Listener {
             "COBBLED_DEEPSLATE_STAIRS","COBBLED_DEEPSLATE_SLAB","COBBLED_DEEPSLATE_WALL",
             "MOSS_BLOCK","MOSS_CARPET","PALE_MOSS_BLOCK","PALE_MOSS_CARPET",
             "OBSIDIAN","CRYING_OBSIDIAN","INFESTED_STONE","INFESTED_COBBLESTONE"
-        ), 0);
+        );
     }
 
-    private void openOresShop(Player player) {
-        openCategoryPage(player, "Ores", mats(
+    private void openStoneShop(Player player) {
+        openCategoryPage(player, "Stone", stoneItems(), 0);
+    }
+
+    private Material[] oresItems() {
+        return mats(
             "COAL_ORE","DEEPSLATE_COAL_ORE","COAL","CHARCOAL","COAL_BLOCK",
             "IRON_ORE","DEEPSLATE_IRON_ORE","RAW_IRON","IRON_INGOT","IRON_NUGGET","IRON_BLOCK","RAW_IRON_BLOCK",
             "COPPER_ORE","DEEPSLATE_COPPER_ORE","RAW_COPPER","COPPER_INGOT","COPPER_BLOCK","RAW_COPPER_BLOCK",
@@ -212,11 +300,15 @@ public class ShopManager implements Listener {
             "GLOWSTONE","GLOWSTONE_DUST","QUARTZ",
             "RESIN_CLUMP","RESIN_BLOCK","RESIN_BRICKS","RESIN_BRICK_STAIRS","RESIN_BRICK_SLAB","RESIN_BRICK_WALL","CHISELED_RESIN_BRICKS",
             "HEAVY_CORE"
-        ), 0);
+        );
     }
 
-    private void openCropsShop(Player player) {
-        openCategoryPage(player, "Crops", mats(
+    private void openOresShop(Player player) {
+        openCategoryPage(player, "Ores", oresItems(), 0);
+    }
+
+    private Material[] cropsItems() {
+        return mats(
             "WHEAT","WHEAT_SEEDS","HAY_BLOCK",
             "CARROT","POTATO","POISONOUS_POTATO","BAKED_POTATO",
             "BEETROOT","BEETROOT_SEEDS","BEETROOT_SOUP",
@@ -238,11 +330,15 @@ public class ShopManager implements Listener {
             "FIREFLY_BUSH","BUSH","SHORT_GRASS","TALL_GRASS","FERN","LARGE_FERN",
             "LEAF_LITTER","WILDFLOWERS","SHORT_DRY_GRASS","TALL_DRY_GRASS",
             "AZALEA","FLOWERING_AZALEA","PINK_PETALS","COCOA_BEANS"
-        ), 0);
+        );
     }
 
-    private void openMobDropsShop(Player player) {
-        openCategoryPage(player, "Mob Drops", mats(
+    private void openCropsShop(Player player) {
+        openCategoryPage(player, "Crops", cropsItems(), 0);
+    }
+
+    private Material[] mobDropsItems() {
+        return mats(
             "ROTTEN_FLESH","BONE","BONE_MEAL","BONE_BLOCK",
             "ARROW","SPECTRAL_ARROW","STRING",
             "SPIDER_EYE","FERMENTED_SPIDER_EYE","GUNPOWDER",
@@ -257,11 +353,15 @@ public class ShopManager implements Listener {
             "TOTEM_OF_UNDYING","NETHER_STAR","TRIDENT","ELYTRA",
             "SADDLE","NAME_TAG","LEAD",
             "SULFUR_CUBE_BUCKET","DRIED_GHAST"
-        ), 0);
+        );
     }
 
-    private void openFoodShop(Player player) {
-        openCategoryPage(player, "Food", mats(
+    private void openMobDropsShop(Player player) {
+        openCategoryPage(player, "Mob Drops", mobDropsItems(), 0);
+    }
+
+    private Material[] foodItems() {
+        return mats(
             "BEEF","COOKED_BEEF","PORKCHOP","COOKED_PORKCHOP",
             "MUTTON","COOKED_MUTTON","CHICKEN","COOKED_CHICKEN",
             "RABBIT","COOKED_RABBIT","RABBIT_STEW",
@@ -272,11 +372,15 @@ public class ShopManager implements Listener {
             "BAKED_POTATO","POISONOUS_POTATO","DRIED_KELP","HONEY_BOTTLE","MILK_BUCKET",
             "MELON_SLICE","SWEET_BERRIES","GLOW_BERRIES","APPLE","CARROT","POTATO","BEETROOT",
             "CHORUS_FRUIT","POPPED_CHORUS_FRUIT","DRIED_KELP_BLOCK","HAY_BLOCK"
-        ), 0);
+        );
     }
 
-    private void openToolsShop(Player player) {
-        openCategoryPage(player, "Tools", mats(
+    private void openFoodShop(Player player) {
+        openCategoryPage(player, "Food", foodItems(), 0);
+    }
+
+    private Material[] toolsItems() {
+        return mats(
             "WOODEN_SWORD","WOODEN_PICKAXE","WOODEN_AXE","WOODEN_SHOVEL","WOODEN_HOE",
             "STONE_SWORD","STONE_PICKAXE","STONE_AXE","STONE_SHOVEL","STONE_HOE",
             "IRON_SWORD","IRON_PICKAXE","IRON_AXE","IRON_SHOVEL","IRON_HOE",
@@ -300,11 +404,15 @@ public class ShopManager implements Listener {
             "OAK_CHEST_BOAT","SPRUCE_CHEST_BOAT","BIRCH_CHEST_BOAT","JUNGLE_CHEST_BOAT",
             "ACACIA_CHEST_BOAT","DARK_OAK_CHEST_BOAT","MANGROVE_CHEST_BOAT","CHERRY_CHEST_BOAT",
             "PALE_OAK_CHEST_BOAT","BAMBOO_CHEST_RAFT"
-        ), 0);
+        );
     }
 
-    private void openArmorShop(Player player) {
-        openCategoryPage(player, "Armor", mats(
+    private void openToolsShop(Player player) {
+        openCategoryPage(player, "Tools", toolsItems(), 0);
+    }
+
+    private Material[] armorItems() {
+        return mats(
             "LEATHER_HELMET","LEATHER_CHESTPLATE","LEATHER_LEGGINGS","LEATHER_BOOTS",
             "CHAINMAIL_HELMET","CHAINMAIL_CHESTPLATE","CHAINMAIL_LEGGINGS","CHAINMAIL_BOOTS",
             "IRON_HELMET","IRON_CHESTPLATE","IRON_LEGGINGS","IRON_BOOTS",
@@ -325,11 +433,15 @@ public class ShopManager implements Listener {
             "RIB_ARMOR_TRIM_SMITHING_TEMPLATE","EYE_ARMOR_TRIM_SMITHING_TEMPLATE",
             "SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE","FLOW_ARMOR_TRIM_SMITHING_TEMPLATE",
             "BOLT_ARMOR_TRIM_SMITHING_TEMPLATE"
-        ), 0);
+        );
     }
 
-    private void openBuildingShop(Player player) {
-        openCategoryPage(player, "Building", mats(
+    private void openArmorShop(Player player) {
+        openCategoryPage(player, "Armor", armorItems(), 0);
+    }
+
+    private Material[] buildingItems() {
+        return mats(
             "WHITE_WOOL","ORANGE_WOOL","MAGENTA_WOOL","LIGHT_BLUE_WOOL","YELLOW_WOOL","LIME_WOOL",
             "PINK_WOOL","GRAY_WOOL","LIGHT_GRAY_WOOL","CYAN_WOOL","PURPLE_WOOL","BLUE_WOOL",
             "BROWN_WOOL","GREEN_WOOL","RED_WOOL","BLACK_WOOL",
@@ -371,11 +483,15 @@ public class ShopManager implements Listener {
             "RESIN_BRICKS","RESIN_BRICK_STAIRS","RESIN_BRICK_SLAB","RESIN_BRICK_WALL","CHISELED_RESIN_BRICKS",
             "SULFUR","POLISHED_SULFUR","SULFUR_BRICKS","CHISELED_SULFUR",
             "CINNABAR","POLISHED_CINNABAR","CINNABAR_BRICKS","CHISELED_CINNABAR"
-        ), 0);
+        );
     }
 
-    private void openDecorationShop(Player player) {
-        openCategoryPage(player, "Decoration", mats(
+    private void openBuildingShop(Player player) {
+        openCategoryPage(player, "Building", buildingItems(), 0);
+    }
+
+    private Material[] decorationItems() {
+        return mats(
             "CRAFTING_TABLE","FURNACE","BLAST_FURNACE","SMOKER","BREWING_STAND","CAULDRON",
             "COMPOSTER","BARREL","CHEST","TRAPPED_CHEST","ENDER_CHEST",
             "SHULKER_BOX","WHITE_SHULKER_BOX","ORANGE_SHULKER_BOX","MAGENTA_SHULKER_BOX",
@@ -413,11 +529,15 @@ public class ShopManager implements Listener {
             "OAK_SHELF","SPRUCE_SHELF","BIRCH_SHELF","JUNGLE_SHELF","ACACIA_SHELF","DARK_OAK_SHELF",
             "MANGROVE_SHELF","CHERRY_SHELF","PALE_OAK_SHELF","BAMBOO_SHELF","CRIMSON_SHELF","WARPED_SHELF",
             "COPPER_CHEST","EXPOSED_COPPER_CHEST","WEATHERED_COPPER_CHEST","OXIDIZED_COPPER_CHEST","WAXED_COPPER_CHEST"
-        ), 0);
+        );
     }
 
-    private void openRedstoneShop(Player player) {
-        openCategoryPage(player, "Redstone", mats(
+    private void openDecorationShop(Player player) {
+        openCategoryPage(player, "Decoration", decorationItems(), 0);
+    }
+
+    private Material[] redstoneItems() {
+        return mats(
             "REDSTONE","REDSTONE_BLOCK","REDSTONE_TORCH","REDSTONE_LAMP",
             "LEVER","STONE_BUTTON","OAK_BUTTON","SPRUCE_BUTTON","BIRCH_BUTTON","JUNGLE_BUTTON",
             "ACACIA_BUTTON","DARK_OAK_BUTTON","MANGROVE_BUTTON","CHERRY_BUTTON","PALE_OAK_BUTTON",
@@ -434,11 +554,15 @@ public class ShopManager implements Listener {
             "COPPER_BULB","EXPOSED_COPPER_BULB","WEATHERED_COPPER_BULB","OXIDIZED_COPPER_BULB",
             "WAXED_COPPER_BULB","WAXED_EXPOSED_COPPER_BULB","WAXED_WEATHERED_COPPER_BULB","WAXED_OXIDIZED_COPPER_BULB",
             "TRAPPED_CHEST","DAYLIGHT_DETECTOR","SCAFFOLDING"
-        ), 0);
+        );
     }
 
-    private void openNetherShop(Player player) {
-        openCategoryPage(player, "Nether", mats(
+    private void openRedstoneShop(Player player) {
+        openCategoryPage(player, "Redstone", redstoneItems(), 0);
+    }
+
+    private Material[] netherItems() {
+        return mats(
             "NETHERRACK","NETHER_BRICKS","RED_NETHER_BRICKS","CHISELED_NETHER_BRICKS","CRACKED_NETHER_BRICKS",
             "NETHER_BRICK_FENCE","NETHER_BRICK_STAIRS","NETHER_BRICK_SLAB","NETHER_BRICK_WALL",
             "RED_NETHER_BRICK_STAIRS","RED_NETHER_BRICK_SLAB","RED_NETHER_BRICK_WALL",
@@ -458,11 +582,15 @@ public class ShopManager implements Listener {
             "CRIMSON_DOOR","WARPED_DOOR","CRIMSON_TRAPDOOR","WARPED_TRAPDOOR","CRIMSON_FENCE","WARPED_FENCE",
             "NETHER_GOLD_ORE","NETHER_QUARTZ_ORE","QUARTZ",
             "ANCIENT_DEBRIS","NETHERITE_SCRAP","NETHERITE_INGOT","NETHERITE_BLOCK"
-        ), 0);
+        );
     }
 
-    private void openEndShop(Player player) {
-        openCategoryPage(player, "End", mats(
+    private void openNetherShop(Player player) {
+        openCategoryPage(player, "Nether", netherItems(), 0);
+    }
+
+    private Material[] endItems() {
+        return mats(
             "END_STONE","END_STONE_BRICKS","END_STONE_BRICK_STAIRS","END_STONE_BRICK_SLAB","END_STONE_BRICK_WALL",
             "PURPUR_BLOCK","PURPUR_PILLAR","PURPUR_STAIRS","PURPUR_SLAB",
             "END_ROD","CHORUS_FLOWER","CHORUS_FRUIT","POPPED_CHORUS_FRUIT",
@@ -472,11 +600,15 @@ public class ShopManager implements Listener {
             "GRAY_SHULKER_BOX","LIGHT_GRAY_SHULKER_BOX","CYAN_SHULKER_BOX","PURPLE_SHULKER_BOX",
             "BLUE_SHULKER_BOX","BROWN_SHULKER_BOX","GREEN_SHULKER_BOX","RED_SHULKER_BOX","BLACK_SHULKER_BOX",
             "DRAGON_EGG","DRAGON_BREATH","DRAGON_HEAD","END_CRYSTAL","ELYTRA"
-        ), 0);
+        );
     }
 
-    private void openLatestShop(Player player) {
-        openCategoryPage(player, "New 1.21-26.2", mats(
+    private void openEndShop(Player player) {
+        openCategoryPage(player, "End", endItems(), 0);
+    }
+
+    private Material[] latestItems() {
+        return mats(
             // 1.21 Tricky Trials
             "COPPER_DOOR","EXPOSED_COPPER_DOOR","WEATHERED_COPPER_DOOR","OXIDIZED_COPPER_DOOR",
             "WAXED_COPPER_DOOR","WAXED_EXPOSED_COPPER_DOOR","WAXED_WEATHERED_COPPER_DOOR","WAXED_OXIDIZED_COPPER_DOOR",
@@ -525,13 +657,38 @@ public class ShopManager implements Listener {
             "CINNABAR_BRICKS","CINNABAR_BRICK_STAIRS","CINNABAR_BRICK_SLAB","CINNABAR_BRICK_WALL",
             "CHISELED_CINNABAR","SULFUR_CUBE_BUCKET",
             "MUSIC_DISC_BOUNCE","MUSIC_DISC_TEARS","MUSIC_DISC_CREATOR","MUSIC_DISC_CREATOR_MUSIC_BOX","MUSIC_DISC_PRECIPICE"
-        ), 0);
+        );
+    }
+
+    private void openLatestShop(Player player) {
+        openCategoryPage(player, "New 1.21-26.2", latestItems(), 0);
     }
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         String title = event.getView().getTitle();
+
+        if (isSearchAnvil(title)) {
+            event.setCancelled(true);
+            if (event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+            if (event.getSlot() == 2) {
+                String text = getAnvilText(event.getView().getTopInventory());
+                UUID id = player.getUniqueId();
+                if (text == null || text.trim().isEmpty()) {
+                    // Empty rename (or Bedrock where rename may not work) -> type in chat instead
+                    searching.remove(id);
+                    chatPending.add(id);
+                    player.closeInventory();
+                    player.sendMessage("§bType your search in chat, or 'cancel'.");
+                } else {
+                    searching.remove(id);
+                    player.closeInventory();
+                    showResults(player, text.trim());
+                }
+            }
+            return;
+        }
 
         boolean isMain = isMainShop(title);
         boolean isCategory = isCategoryShop(title);
@@ -561,6 +718,7 @@ public class ShopManager implements Listener {
                 case 24 -> openEndShop(player);
                 case 31 -> openLatestShop(player);
                 case 40 -> sellManager.openSellGui(player);
+                case 49 -> openSearch(player);
             }
             return;
         }
@@ -613,9 +771,31 @@ public class ShopManager implements Listener {
     }
 
     @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        if (searching.remove(player.getUniqueId())) {
+            // Closed the anvil without submitting -> back to shop
+            Bukkit.getScheduler().runTask(getPlugin(), () -> openShop(player));
+        }
+    }
+
+    @EventHandler
+    public void onChat(AsyncPlayerChatEvent event) {
+        Player player = event.getPlayer();
+        if (!chatPending.remove(player.getUniqueId())) return;
+        event.setCancelled(true);
+        String msg = event.getMessage().trim();
+        if (msg.equalsIgnoreCase("cancel")) {
+            Bukkit.getScheduler().runTask(getPlugin(), () -> openShop(player));
+            return;
+        }
+        Bukkit.getScheduler().runTask(getPlugin(), () -> showResults(player, msg));
+    }
+
+    @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         String title = event.getView().getTitle();
-        if (isMainShop(title) || isCategoryShop(title)) {
+        if (isMainShop(title) || isCategoryShop(title) || isSearchAnvil(title)) {
             event.setCancelled(true);
         }
     }

@@ -15,10 +15,12 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Back** | `/back` |
 | **Waypoints** | `/waypoint` |
 | **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
-| **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/bounty` |
+| **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
+| **Leveling** | `/level` |
+| **Playtime** | `/playtime` |
 | **Help** | `/bundledhelp` |
 
-- **Auto-updater** — Checks for updates on startup, downloads and applies on next restart
+- **Auto-updater** — Checks for updates on startup, downloads and applies on next restart (console can use `/bundledupdate` too)
 - **Dynamic Pricing** — Shop prices drift based on market simulation and inflation
 
 ---
@@ -90,23 +92,52 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 #### Money Sources
 - **Kill mobs** — $0.01 to $10.00 (random)
-- **Playtime** — $15.00 every 5 minutes
-- **Bounty claims** — Kill a player with a bounty to claim it
+- **Playtime** — $1.00 to $3.00 every 5 minutes, scaled up by your level (+10% per level by default)
+- **Bounty claims** — Kill a player with a bounty to claim it (20% tax)
 
 #### Shop Categories
-- **Logs** — Oak, Birch, Spruce, Jungle, Acacia, Dark Oak, Mangrove, Cherry, Crimson, Warped
-- **Stone** — Cobblestone, Stone, Deepslate, Andesite, Diorite, Granite, Tuff, etc.
-- **Ores** — Coal, Iron, Copper, Gold, Redstone, Lapis, Diamond, Emerald, Netherite
-- **Crops** — Wheat, Carrot, Potato, Beetroot, Melon, Pumpkin, Sugar Cane, etc.
-- **Mob Drops** — Bone, String, Gunpowder, Ender Pearl, Blaze Rod, etc.
-- **Building** — Planks, Fences, Stairs, Slabs, Doors, Glass, Bricks, etc.
-- **Decoration** — Crafting Table, Furnace, Anvil, Chest, Torch, Lantern, etc.
+- **Logs** — All logs, woods, planks, saplings, leaves (incl. Cherry, Pale Oak)
+- **Stone** — Cobblestone, Stone, Deepslate, Granite, Sandstone, Tuff, dirt, sand, etc.
+- **Ores** — Coal, Iron, Copper, Gold, Redstone, Lapis, Diamond, Emerald, Quartz, Amethyst, Netherite, Resin
+- **Crops** — Wheat, Carrot, Potato, Melon, Pumpkin, berries, mushrooms, all flowers, Torchflower, Eyeblossom, etc.
+- **Mob Drops** — Bone, String, Gunpowder, Ender Pearl, Blaze/Breeze Rods, heads, Totem, Nether Star, Elytra, etc.
+- **Food** — Raw + cooked meat and fish, bread, cake, stews, golden foods
+- **Tools** — All tiers incl. Mace, bows, buckets, boats, bundles, compasses, minecarts
+- **Armor** — All tiers, horse armor, Wolf Armor, Harnesses, armor trims
+- **Building** — All wool, concrete, terracotta, glass, stairs/slabs/walls, quartz, prismarine, copper, sulfur/cinnabar
+- **Decoration** — Furniture, lights, candles, beds, banners, shulker boxes, music discs, shelves, copper chests
+- **Redstone** — Pistons, rails, Crafter, Copper Bulbs, sculk, TNT
+- **Nether** — Full Nether set incl. Blackstone, Basalt, Nylium, Netherite
+- **End** — End Stone, Purpur, Chorus, all Shulker Boxes, Dragon Egg, Elytra
+- **New 1.21-26.2** — Copper/Tuff variants, Pale Garden, Resin, Happy Ghast gear, Sulfur & Cinnabar sets, new discs
+- **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page (chat fallback included)
 
 #### Dynamic Pricing
 - Prices drift ±5-10% every 5 minutes
 - Inflation grows slowly over server uptime
 - Enchanted items sell for bonus money
 - Sell price is 60% of current buy price
+- High-end items (Elytra, Totem, Netherite, Dragon Egg...) keep premium prices
+
+### Leveling
+
+| Command | Description |
+|---------|-------------|
+| `/level` | Check your level, XP progress and playtime bonus |
+| `/level <player>` | Check another player's level |
+
+- Collect **XP orbs** to earn server XP and level up
+- Each level needs more XP than the last: `base-xp x multiplier^(level-1)` (default `100 x 1.5`)
+- Higher level boosts your playtime money prize
+- Configurable in `config.yml` under `leveling:` (enabled, base-xp, multiplier, playtime-bonus-per-level)
+
+### Playtime
+
+| Command | Description |
+|---------|-------------|
+| `/playtime` | Check your total online time |
+| `/playtime <player>` | Check another player's time (works offline) |
+| `/playtime leaderboard` | Top 10 players by playtime |
 
 ### Help
 
@@ -124,6 +155,8 @@ The plugin automatically checks for new versions on startup via GitHub Releases.
 2. On next server restart, the old JAR is replaced with the new one
 
 No forced restarts — updates apply naturally.
+
+Players with `bundleessential.update` permission (and console) can run `/bundledupdate` to check/download manually.
 
 ---
 
@@ -170,6 +203,9 @@ All player data is stored automatically in:
 - `plugins/BundledEssential/homes.yml` - Home locations
 - `plugins/BundledEssential/config.yml` - Waypoint locations
 - `plugins/BundledEssential/balances.json` - Player balances
+- `plugins/BundledEssential/levels.json` - Player levels and XP
+- `plugins/BundledEssential/playtime.json` - Player online time
+- `plugins/BundledEssential/shop.json` - Shop price overrides (delete to reset to defaults)
 
 No manual configuration needed.
 
@@ -188,6 +224,7 @@ bundleessential.back: true
 bundleessential.waypoint: true
 bundleessential.trade: true
 bundleessential.economy: true
+bundleessential.update: true
 ```
 
 ---
