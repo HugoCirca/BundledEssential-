@@ -133,6 +133,7 @@ public class BalanceManager implements Listener, CommandExecutor {
                         level = levelManager.getLevel(player);
                         reward = Math.round(reward * mult * 100.0) / 100.0;
                     }
+                    if (bountyManager != null) reward = bountyManager.garnish(player, reward);
                     addBalance(player, reward);
                     if (level > 1) {
                         player.sendMessage("§a[Playtime] §e+$" + Money.format(reward) + " §7(Lv " + level + " bonus +" + (int) Math.round((mult - 1.0) * 100) + "%)");
@@ -185,6 +186,7 @@ public class BalanceManager implements Listener, CommandExecutor {
         } else {
             double reward = Math.round(random.nextDouble() * MAX_MOB_REWARD * 100.0) / 100.0;
             if (reward < 0.01) reward = 0.01;
+            if (bountyManager != null) reward = bountyManager.garnish(killer, reward);
             addBalance(killer, reward);
             killer.sendMessage("§a[Kill] §e+$" + Money.format(reward));
         }
