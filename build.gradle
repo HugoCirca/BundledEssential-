@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'com.bundleessential'
-version = '1.0.44'
+version = '1.0.45'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -30,7 +30,7 @@ jar {
 
 shadowJar {
     archiveBaseName.set('BundledEssential')
-    archiveVersion.set('1.0.44')
+    archiveVersion.set('1.0.45')
     archiveClassifier.set('')
     relocate 'net.wesjd.anvilgui', 'com.bundleessential.anvilgui'
 }
