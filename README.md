@@ -190,6 +190,11 @@ The plugin automatically checks for new versions on startup via GitHub Releases.
 
 No forced restarts — updates apply naturally.
 
+- Downloads are size-verified; corrupt or partial files are deleted, never applied
+- The replaced jar is kept as a versioned backup in `plugins/BundledEssential-backups/` (last 3)
+- A failed apply restores the backup automatically
+- `/bundledupdate` tells you if an update is already pending on disk
+
 Players with `bundleessential.update` permission (and console) can run `/bundledupdate` to check/download manually.
 
 ---
