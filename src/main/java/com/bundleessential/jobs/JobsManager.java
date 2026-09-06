@@ -55,7 +55,7 @@ public class JobsManager implements Listener, CommandExecutor {
     // Stone meter: every STONE_MIN-MAX stone mined hits a payout of target x STONE_PAY_EACH
     private static final int STONE_MIN = 64;
     private static final int STONE_MAX = 128;
-    private static final double STONE_PAY_EACH = 0.08;
+    private static final double STONE_PAY_EACH = 0.20;
     private static final int THRESHOLD_MIN = 16;
     private static final int THRESHOLD_MAX = 1024;
     private static final long BAR_IDLE_TICKS = 200L; // hide boss bar after 10s idle
@@ -177,7 +177,7 @@ public class JobsManager implements Listener, CommandExecutor {
         if (count >= target) {
             double payout = Math.round(target * STONE_PAY_EACH * 100.0) / 100.0;
             pay(player, "miner", payout);
-            player.sendMessage("§6§lLUCKY BREAK! §e+$" + Money.format(payout) + " §7for mining " + target + " " + formatStone(key) + ".");
+            player.sendMessage("§6§lQUOTA MET! §e+$" + Money.format(payout) + " §7for mining " + target + " " + formatStone(key) + ".");
             count = 0;
             if (!custom) target = randomStoneTarget();
         }
@@ -334,7 +334,7 @@ public class JobsManager implements Listener, CommandExecutor {
 
     private void sendList(Player player) {
         player.sendMessage("§6§lJobs §7— pick one with §e/jobs join <name>");
-        player.sendMessage("§eMiner §7- ores (diamond $12, gold $4...) + cave blocks + stone meter ($4-10 breaks)");
+        player.sendMessage("§eMiner §7- ores (diamond $18, gold $6...) + cave blocks + stone quotas ($13-26)");
         player.sendMessage("§eWoodcutter §7- logs $0.50 each");
         player.sendMessage("§eFarmer §7- ripe crops (wheat $1, melon/pumpkin $1.50...)");
         player.sendMessage("§eFisher §7- catches (fish $1-2, treasure up to $10)");
@@ -517,42 +517,42 @@ public class JobsManager implements Listener, CommandExecutor {
     }
 
     private void initTables() {
-        minerPay.put(Material.COAL_ORE, 1.00);
-        minerPay.put(Material.DEEPSLATE_COAL_ORE, 1.25);
-        minerPay.put(Material.IRON_ORE, 2.50);
-        minerPay.put(Material.DEEPSLATE_IRON_ORE, 3.00);
-        minerPay.put(Material.COPPER_ORE, 1.50);
-        minerPay.put(Material.DEEPSLATE_COPPER_ORE, 1.75);
-        minerPay.put(Material.GOLD_ORE, 4.00);
-        minerPay.put(Material.DEEPSLATE_GOLD_ORE, 4.50);
-        minerPay.put(Material.NETHER_GOLD_ORE, 4.00);
-        minerPay.put(Material.REDSTONE_ORE, 2.00);
-        minerPay.put(Material.DEEPSLATE_REDSTONE_ORE, 2.25);
-        minerPay.put(Material.LAPIS_ORE, 3.00);
-        minerPay.put(Material.DEEPSLATE_LAPIS_ORE, 3.50);
-        minerPay.put(Material.DIAMOND_ORE, 12.00);
-        minerPay.put(Material.DEEPSLATE_DIAMOND_ORE, 14.00);
-        minerPay.put(Material.EMERALD_ORE, 10.00);
-        minerPay.put(Material.DEEPSLATE_EMERALD_ORE, 12.00);
-        minerPay.put(Material.NETHER_QUARTZ_ORE, 1.50);
-        minerPay.put(Material.ANCIENT_DEBRIS, 25.00);
-        minerPay.put(Material.OBSIDIAN, 2.00);
-        minerPay.put(Material.GLOWSTONE, 1.00);
+        minerPay.put(Material.COAL_ORE, 1.50);
+        minerPay.put(Material.DEEPSLATE_COAL_ORE, 1.75);
+        minerPay.put(Material.IRON_ORE, 4.00);
+        minerPay.put(Material.DEEPSLATE_IRON_ORE, 4.50);
+        minerPay.put(Material.COPPER_ORE, 2.50);
+        minerPay.put(Material.DEEPSLATE_COPPER_ORE, 3.00);
+        minerPay.put(Material.GOLD_ORE, 6.00);
+        minerPay.put(Material.DEEPSLATE_GOLD_ORE, 7.00);
+        minerPay.put(Material.NETHER_GOLD_ORE, 6.00);
+        minerPay.put(Material.REDSTONE_ORE, 3.00);
+        minerPay.put(Material.DEEPSLATE_REDSTONE_ORE, 3.50);
+        minerPay.put(Material.LAPIS_ORE, 4.50);
+        minerPay.put(Material.DEEPSLATE_LAPIS_ORE, 5.00);
+        minerPay.put(Material.DIAMOND_ORE, 18.00);
+        minerPay.put(Material.DEEPSLATE_DIAMOND_ORE, 21.00);
+        minerPay.put(Material.EMERALD_ORE, 15.00);
+        minerPay.put(Material.DEEPSLATE_EMERALD_ORE, 18.00);
+        minerPay.put(Material.NETHER_QUARTZ_ORE, 2.50);
+        minerPay.put(Material.ANCIENT_DEBRIS, 40.00);
+        minerPay.put(Material.OBSIDIAN, 3.00);
+        minerPay.put(Material.GLOWSTONE, 1.50);
 
         // Natural cave blocks: small instant pay (player-placed never pays)
-        cavePay.put(Material.ANDESITE, 0.25);
-        cavePay.put(Material.DIORITE, 0.25);
-        cavePay.put(Material.GRANITE, 0.25);
-        cavePay.put(Material.TUFF, 0.30);
-        cavePay.put(Material.CALCITE, 0.35);
-        cavePay.put(Material.DRIPSTONE_BLOCK, 0.30);
-        cavePay.put(Material.POINTED_DRIPSTONE, 0.20);
-        cavePay.put(Material.DIRT, 0.10);
-        cavePay.put(Material.GRAVEL, 0.15);
-        cavePay.put(Material.CLAY, 0.25);
-        cavePay.put(Material.MOSS_BLOCK, 0.30);
-        cavePay.put(Material.INFESTED_STONE, 0.50);
-        cavePay.put(Material.INFESTED_COBBLESTONE, 0.40);
+        cavePay.put(Material.ANDESITE, 0.50);
+        cavePay.put(Material.DIORITE, 0.50);
+        cavePay.put(Material.GRANITE, 0.50);
+        cavePay.put(Material.TUFF, 0.60);
+        cavePay.put(Material.CALCITE, 0.70);
+        cavePay.put(Material.DRIPSTONE_BLOCK, 0.60);
+        cavePay.put(Material.POINTED_DRIPSTONE, 0.40);
+        cavePay.put(Material.DIRT, 0.20);
+        cavePay.put(Material.GRAVEL, 0.30);
+        cavePay.put(Material.CLAY, 0.50);
+        cavePay.put(Material.MOSS_BLOCK, 0.60);
+        cavePay.put(Material.INFESTED_STONE, 1.00);
+        cavePay.put(Material.INFESTED_COBBLESTONE, 0.80);
 
         farmerPay.put(Material.WHEAT, 1.00);
         farmerPay.put(Material.CARROTS, 1.00);
