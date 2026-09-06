@@ -12,7 +12,7 @@ pay: true
 shop: true
 sell: true
 leveling: true
-jobs: true
+rewards: true
 playtime: true
 dynamic-light: true
 updater: true

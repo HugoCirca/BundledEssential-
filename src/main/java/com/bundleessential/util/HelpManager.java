@@ -42,7 +42,8 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("  §7/bounty <player> [amount] §f- Set/check bounty");
         sender.sendMessage("  §7/paytax §f- Pay accumulated taxes");
         sender.sendMessage("  §7/repair [full] §f- Repair held item");
-        sender.sendMessage("  §7/jobs §f- Join jobs to earn money");
+        sender.sendMessage("  §7/daily [claim] §f- Daily random quest");
+        sender.sendMessage("  §7/login §f- Daily streak reward (scales)");
         sender.sendMessage("");
         sender.sendMessage("§e§lOther");
         sender.sendMessage("  §7/bundledhelp §f- Show this help");

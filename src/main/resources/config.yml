@@ -12,6 +12,21 @@ leveling:
   multiplier: 1.5
   playtime-bonus-per-level: 0.10
 
+# Daily quests + login streak (replaces jobs)
+# /login day N pays: base + (N-1)*per-day + random 0..random-max
+# + weekly-bonus every 7th day, + monthly-bonus every 30th day.
+# Example defaults: day1 ~$20-30, day30 ~$175, day365 ~$1850.
+rewards:
+  login:
+    base: 20.0
+    per-day: 5.0
+    random-max: 10.0
+    weekly-bonus: 50.0
+    monthly-bonus: 200.0
+  daily:
+    # Multiplies the built-in per-quest rewards (ore/hunt pay more than stone/logs).
+    reward-multiplier: 1.0
+
 # Dynamic Light (held torches, lanterns, lava buckets, etc. glow around you)
 dynamic-light:
   interval-ticks: 10

@@ -76,10 +76,13 @@ commands:
   level:
     description: Check your server level and XP progress
     usage: /level [player]
-  jobs:
-    description: Join jobs to earn money for actions
-    usage: /jobs [list|join|leave|info|threshold]
-    aliases: [job]
+  daily:
+    description: Check and claim your daily quest
+    usage: /daily [claim]
+  login:
+    description: Claim your daily login streak reward
+    usage: /login
+    aliases: [claim, streak, dailylogin]
   playtime:
     description: Check playtime or view the leaderboard
     usage: /playtime [leaderboard|<player>]
