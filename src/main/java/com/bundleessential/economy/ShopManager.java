@@ -104,6 +104,8 @@ public class ShopManager implements Listener {
                 Material m = Material.matchMaterial(n);
                 if (m != null && m != Material.AIR && m.isItem()) {
                     list.add(m);
+                } else {
+                    Bukkit.getLogger().warning("[Shop] Skipping unknown item '" + n + "' (not on this server version).");
                 }
             } catch (Exception ignored) {}
         }

@@ -81,8 +81,8 @@ commands:
     usage: /daily
     aliases: [login, claim, streak, dailylogin]
   quest:
-    description: Check and claim repeatable quests
-    usage: /quest [claim]
+    description: Check, claim, or skip repeatable quests
+    usage: /quest [claim|skip]
     aliases: [quests]
   autosell:
     description: Auto-sell chest help and admin give

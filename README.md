@@ -174,6 +174,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 |---------|-------------|
 | `/quest` | Check current quest progress |
 | `/quest claim` | Claim a finished quest — a new one starts instantly, no waiting |
+| `/quest skip` | Ditch the current quest for a fresh roll (no reward, no penalty) |
 | `/daily` | Claim daily streak reward, auto-granted on join (aliases `/login`, `/claim`, `/streak`) |
 
 - **Quests** — 15 repeatable tasks: mine stone/ores, harvest crops, hunt hostiles, catch real fish, breed/tame/shear animals, enchant, smelt, brew, eat, sleep, visit dimensions, gain XP levels. Rewards $20-90 (ores, hunts and enchants pay most). Claiming instantly rolls your next quest

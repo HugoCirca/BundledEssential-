@@ -378,6 +378,12 @@ public class RewardManager implements Listener, CommandExecutor {
     }
 
     private void handleQuest(Player player, String[] args) {
+        if (args.length >= 1 && (args[0].equalsIgnoreCase("skip") || args[0].equalsIgnoreCase("reroll"))) {
+            JsonObject next = newQuest(player);
+            player.sendMessage("§eQuest skipped! §6§lNew quest: §f" + describe(next)
+                    + " §7— $" + Money.format(next.get("reward").getAsDouble()));
+            return;
+        }
         boolean claimOnly = args.length >= 1 && args[0].equalsIgnoreCase("claim");
         JsonObject q = getOrCreateQuest(player);
         int progress = q.get("progress").getAsInt();
