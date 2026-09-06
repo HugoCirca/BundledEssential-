@@ -75,11 +75,15 @@ public class ShopManager implements Listener {
     private static final String SEARCH_TITLE = "Search shop items";
     private static final String BUY_TITLE = "§6§lBuy ";
     // Never sold: admin/creative-only (command execution, world editing).
+    // SPAWNER is also excluded — the only spawner sold is the Custom
+    // Zombie Spawner ($500) which stacks via right-click. The vanilla $1
+    // one has no stacking and breaks the system.
     // Everything else — even unobtainable blocks — is listed.
     private static final String[] SHOP_EXCLUDED = {
         "COMMAND_BLOCK", "CHAIN_COMMAND_BLOCK", "REPEATING_COMMAND_BLOCK",
         "COMMAND_BLOCK_MINECART", "STRUCTURE_BLOCK", "STRUCTURE_VOID", "JIGSAW",
-        "BARRIER", "DEBUG_STICK", "KNOWLEDGE_BOOK", "LIGHT", "BEDROCK"
+        "BARRIER", "DEBUG_STICK", "KNOWLEDGE_BOOK", "LIGHT", "BEDROCK",
+        "SPAWNER"
     };
 
     public ShopManager(BalanceManager balanceManager, PriceManager priceManager, SellManager sellManager) {
