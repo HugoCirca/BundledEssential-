@@ -84,6 +84,9 @@ commands:
     description: Check and claim repeatable quests
     usage: /quest [claim]
     aliases: [quests]
+  autosell:
+    description: Auto-sell chest help and admin give
+    usage: /autosell [give <player> [amount]]
   playtime:
     description: Check playtime or view the leaderboard
     usage: /playtime [leaderboard|<player>]

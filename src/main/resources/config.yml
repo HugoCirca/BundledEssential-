@@ -5,6 +5,8 @@
 economy:
   mob-kill-rewards: true
   playtime-rewards: true
+  playtime-min-reward: 2.0
+  playtime-max-reward: 5.0
 
 # Leveling System (collect XP orbs to level up, higher level = bigger playtime prize)
 leveling:
@@ -30,3 +32,18 @@ rewards:
 # Dynamic Light (held torches, lanterns, lava buckets, etc. glow around you)
 dynamic-light:
   interval-ticks: 10
+
+# Auto-sell chest (Custom category) — sells chest contents on a timer, split equally.
+# Configure: right-click air holding it (interval + recipients).
+# Reconfigure placed one: sneak + right-click it. Hoppers feed it normally.
+autosell:
+  price: 500.0
+  default-interval-seconds: 60
+  intervals: [30, 60, 300, 600]
+  max-recipients: 5
+
+# Stackable zombie spawner (Custom category) — right-click a placed one with
+# another spawner item to raise its rate, up to max-multiplier.
+spawner:
+  price: 500.0
+  max-multiplier: 35

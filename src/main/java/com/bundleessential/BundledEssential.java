@@ -1,5 +1,6 @@
 package com.bundleessential;
 
+import com.bundleessential.autosell.AutoSellManager;
 import com.bundleessential.back.BackManager;
 import com.bundleessential.economy.BalanceManager;
 import com.bundleessential.economy.BountyManager;
@@ -11,6 +12,7 @@ import com.bundleessential.level.PlaytimeManager;
 import com.bundleessential.light.DynamicLightManager;
 import com.bundleessential.home.HomeManager;
 import com.bundleessential.rewards.RewardManager;
+import com.bundleessential.spawner.SpawnerManager;
 import com.bundleessential.tpa.TpaManager;
 import com.bundleessential.trade.TradeManager;
 import com.bundleessential.updater.UpdateManager;
@@ -41,6 +43,8 @@ public class BundledEssential extends JavaPlugin {
     private HelpManager helpManager;
     private LevelManager levelManager;
     private RewardManager rewardManager;
+    private AutoSellManager autosellManager;
+    private SpawnerManager spawnerManager;
     private PlaytimeManager playtimeManager;
     private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
@@ -88,6 +92,12 @@ public class BundledEssential extends JavaPlugin {
             if (features.isEnabled("rewards")) {
                 rewardManager = new RewardManager(this, balanceManager, bountyManager);
             }
+            if (features.isEnabled("autosell")) {
+                autosellManager = new AutoSellManager(this, balanceManager, priceManager);
+            }
+            if (features.isEnabled("spawner")) {
+                spawnerManager = new SpawnerManager(this);
+            }
             if (features.isEnabled("playtime")) {
                 playtimeManager = new PlaytimeManager(this);
             }
@@ -104,6 +114,8 @@ public class BundledEssential extends JavaPlugin {
         if (shopManager != null) Bukkit.getPluginManager().registerEvents(shopManager, this);
         if (levelManager != null) Bukkit.getPluginManager().registerEvents(levelManager, this);
         if (rewardManager != null) Bukkit.getPluginManager().registerEvents(rewardManager, this);
+        if (autosellManager != null) Bukkit.getPluginManager().registerEvents(autosellManager, this);
+        if (spawnerManager != null) Bukkit.getPluginManager().registerEvents(spawnerManager, this);
         if (playtimeManager != null) Bukkit.getPluginManager().registerEvents(playtimeManager, this);
         if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
         if (tradeManager != null) Bukkit.getPluginManager().registerEvents(tradeManager, this);
@@ -126,6 +138,12 @@ public class BundledEssential extends JavaPlugin {
         }
         if (rewardManager != null) {
             rewardManager.saveAll();
+        }
+        if (autosellManager != null) {
+            autosellManager.saveAll();
+        }
+        if (spawnerManager != null) {
+            spawnerManager.saveAll();
         }
         if (playtimeManager != null) {
             playtimeManager.savePlaytime();
@@ -244,6 +262,9 @@ public class BundledEssential extends JavaPlugin {
         if (rewardManager != null) {
             getCommand("quest").setExecutor(rewardManager);
             getCommand("daily").setExecutor(rewardManager);
+        }
+        if (autosellManager != null) {
+            getCommand("autosell").setExecutor(autosellManager);
         }
         if (playtimeManager != null) {
             getCommand("playtime").setExecutor(playtimeManager);

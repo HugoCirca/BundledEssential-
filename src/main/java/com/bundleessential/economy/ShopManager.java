@@ -1,5 +1,7 @@
 package com.bundleessential.economy;
 
+import com.bundleessential.autosell.AutoSellManager;
+import com.bundleessential.spawner.SpawnerManager;
 import com.bundleessential.util.Money;
 import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
@@ -45,10 +47,18 @@ public class ShopManager implements Listener {
     private static class PendingBuy {
         final Material material;
         final int amount;
+        final Double unitOverride;
+        final ItemStack product;
 
         PendingBuy(Material material, int amount) {
+            this(material, amount, null, null);
+        }
+
+        PendingBuy(Material material, int amount, Double unitOverride, ItemStack product) {
             this.material = material;
             this.amount = amount;
+            this.unitOverride = unitOverride;
+            this.product = product;
         }
     }
 
@@ -136,6 +146,7 @@ public class ShopManager implements Listener {
             shop.setItem(40, makeItem(Material.EMERALD, "§a§lSell Items", "§7Click to open sell menu"));
         }
         shop.setItem(49, makeItem(Material.COMPASS, "§b§lSearch Items", "§7Type a name, jump to matches", "§7Click to search"));
+        shop.setItem(53, makeItem(Material.BARRIER, "§c§lCustom", "§7Special items", "§7Click to look"));
 
         ItemStack glass = makeItem(Material.BLACK_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
@@ -190,11 +201,28 @@ public class ShopManager implements Listener {
         player.openInventory(inv);
     }
 
+    private double autosellPrice() {
+        try {
+            Plugin plugin = getPlugin();
+            if (plugin instanceof JavaPlugin jp) {
+                double p = jp.getConfig().getDouble("autosell.price", 500.0);
+                if (p > 0) {
+                    return Math.round(p * 100.0) / 100.0;
+                }
+            }
+        } catch (Exception ignored) {}
+        return 500.0;
+    }
+
     private void openBuyGui(Player player, Material material, int amount) {
+        openBuyGui(player, material, amount, null, null);
+    }
+
+    private void openBuyGui(Player player, Material material, int amount, Double unitOverride, ItemStack product) {
         int max = Math.max(1, material.getMaxStackSize());
         amount = Math.max(1, Math.min(max, amount));
-        pendingBuys.put(player.getUniqueId(), new PendingBuy(material, amount));
-        double unit = priceManager.getBuyPrice(material);
+        pendingBuys.put(player.getUniqueId(), new PendingBuy(material, amount, unitOverride, product));
+        double unit = unitOverride != null ? unitOverride : priceManager.getBuyPrice(material);
         double total = Math.round(unit * amount * 100.0) / 100.0;
 
         Inventory inv = Bukkit.createInventory(null, 27, BUY_TITLE + formatName(material));
@@ -205,11 +233,19 @@ public class ShopManager implements Listener {
 
         inv.setItem(10, makeItem(Material.ARROW, "§cBack"));
         inv.setItem(12, makeItem(Material.RED_STAINED_GLASS_PANE, "§c§l-1", "§7Shift-click: -10"));
+        ItemStack shown = product != null ? product.clone() : new ItemStack(material);
+        shown.setAmount(Math.max(1, Math.min(shown.getMaxStackSize(), amount)));
+        ItemMeta shownMeta = shown.getItemMeta();
         List<String> lore = new ArrayList<>();
+        if (shownMeta != null && shownMeta.hasLore()) {
+            lore.addAll(shownMeta.getLore());
+        }
         lore.add("§eAmount: §f" + amount + "§7/§f" + max);
         lore.add("§eUnit: §a$" + Money.format(unit));
         lore.add("§eTotal: §a$" + Money.format(total));
-        inv.setItem(13, makeItem(material, "§a" + formatName(material), lore.toArray(new String[0])));
+        shownMeta.setLore(lore);
+        shown.setItemMeta(shownMeta);
+        inv.setItem(13, shown);
         inv.setItem(14, makeItem(Material.LIME_STAINED_GLASS_PANE, "§a§l+1", "§7Shift-click: +10"));
         inv.setItem(16, makeItem(Material.EMERALD_BLOCK, "§a§lConfirm: $" + Money.format(total),
                 "§7Buy " + amount + "x " + formatName(material)));
@@ -223,9 +259,13 @@ public class ShopManager implements Listener {
         long now = System.currentTimeMillis();
         if (now - lastBuyTime.getOrDefault(player.getUniqueId(), 0L) < BUY_DEBOUNCE_MS) return;
         lastBuyTime.put(player.getUniqueId(), now);
-        double total = Math.round(priceManager.getBuyPrice(pending.material) * pending.amount * 100.0) / 100.0;
+        double unit = pending.unitOverride != null ? pending.unitOverride
+                : priceManager.getBuyPrice(pending.material);
+        double total = Math.round(unit * pending.amount * 100.0) / 100.0;
         if (balanceManager.removeBalance(player, total)) {
-            Map<Integer, ItemStack> leftover = player.getInventory().addItem(new ItemStack(pending.material, pending.amount));
+            ItemStack deliver = pending.product != null ? pending.product.clone() : new ItemStack(pending.material);
+            deliver.setAmount(pending.amount);
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(deliver);
             for (ItemStack drop : leftover.values()) {
                 player.getWorld().dropItemNaturally(player.getLocation(), drop);
             }
@@ -236,7 +276,7 @@ public class ShopManager implements Listener {
         } else {
             player.sendMessage("§cNot enough money! Need $" + Money.format(total));
         }
-        openBuyGui(player, pending.material, pending.amount);
+        openBuyGui(player, pending.material, pending.amount, pending.unitOverride, pending.product);
     }
 
     private void openSearch(Player player) {
@@ -762,6 +802,57 @@ public class ShopManager implements Listener {
         openCategoryPage(player, "New 1.21-26.2", latestItems(), 0);
     }
 
+    private void openCustomShop(Player player) {
+        playerPages.put(player.getUniqueId(), new ShopPage("Custom", new Material[0], 0));
+        Inventory inv = Bukkit.createInventory(null, 54, "§6§lCustom");
+        inv.setItem(4, makeItem(Material.ARROW, "§cBack to Shop"));
+        JavaPlugin shopPlugin = (JavaPlugin) JavaPlugin.getProvidingPlugin(ShopManager.class);
+        ItemStack display = AutoSellManager.template(shopPlugin);
+        ItemMeta displayMeta = display.getItemMeta();
+        List<String> displayLore = new ArrayList<>(displayMeta.getLore());
+        displayLore.add("§ePrice: §a$" + Money.format(autosellPrice()));
+        displayLore.add("§7Click to buy");
+        displayMeta.setLore(displayLore);
+        display.setItemMeta(displayMeta);
+        inv.setItem(22, display);
+        ItemStack spawnerDisplay = SpawnerManager.template(shopPlugin);
+        ItemMeta spawnerMeta = spawnerDisplay.getItemMeta();
+        List<String> spawnerLore = new ArrayList<>(spawnerMeta.getLore());
+        spawnerLore.add("§ePrice: §a$" + Money.format(spawnerPrice()));
+        spawnerLore.add("§7Click to buy");
+        spawnerMeta.setLore(spawnerLore);
+        spawnerDisplay.setItemMeta(spawnerMeta);
+        inv.setItem(24, spawnerDisplay);
+        ItemStack glass = makeItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 54; i++) {
+            if (inv.getItem(i) == null) inv.setItem(i, glass);
+        }
+        player.openInventory(inv);
+    }
+
+    private void openAutosellBuyGui(Player player) {
+        JavaPlugin shopPlugin = (JavaPlugin) JavaPlugin.getProvidingPlugin(ShopManager.class);
+        openBuyGui(player, Material.CHEST, 1, autosellPrice(), AutoSellManager.template(shopPlugin));
+    }
+
+    private double spawnerPrice() {
+        try {
+            Plugin plugin = getPlugin();
+            if (plugin instanceof JavaPlugin jp) {
+                double p = jp.getConfig().getDouble("spawner.price", 500.0);
+                if (p > 0) {
+                    return Math.round(p * 100.0) / 100.0;
+                }
+            }
+        } catch (Exception ignored) {}
+        return 500.0;
+    }
+
+    private void openSpawnerBuyGui(Player player) {
+        JavaPlugin shopPlugin = (JavaPlugin) JavaPlugin.getProvidingPlugin(ShopManager.class);
+        openBuyGui(player, Material.SPAWNER, 1, spawnerPrice(), SpawnerManager.template(shopPlugin));
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -779,7 +870,9 @@ public class ShopManager implements Listener {
                 case 10 -> {
                     pendingBuys.remove(player.getUniqueId());
                     ShopPage back = playerPages.get(player.getUniqueId());
-                    if (back != null) {
+                    if (back != null && back.category.equals("Custom")) {
+                        openCustomShop(player);
+                    } else if (back != null) {
                         openCategoryPage(player, back.category, back.materials, back.page);
                     } else {
                         openShop(player);
@@ -827,6 +920,7 @@ public class ShopManager implements Listener {
                     if (sellManager != null) sellManager.openSellGui(player);
                 }
                 case 49 -> openSearch(player);
+                case 53 -> openCustomShop(player);
             }
             return;
         }
@@ -858,6 +952,16 @@ public class ShopManager implements Listener {
                 return;
             }
             if (event.getSlot() == 49) {
+                return;
+            }
+
+            if (title.equals("§6§lCustom") && event.getSlot() == 22) {
+                openAutosellBuyGui(player);
+                return;
+            }
+
+            if (title.equals("§6§lCustom") && event.getSlot() == 24) {
+                openSpawnerBuyGui(player);
                 return;
             }
 
@@ -895,11 +999,15 @@ public class ShopManager implements Listener {
             return;
         }
         if (pendingBuys.remove(player.getUniqueId()) != null) {
-            // Closed the quantity picker with ESC -> back to the category page
+            // Closed the quantity picker with ESC -> back to where it came from
             ShopPage back = playerPages.get(player.getUniqueId());
             if (back == null) return;
-            Bukkit.getScheduler().runTask(getPlugin(), () ->
-                    openCategoryPage(player, back.category, back.materials, back.page));
+            if (back.category.equals("Custom")) {
+                Bukkit.getScheduler().runTask(getPlugin(), () -> openCustomShop(player));
+            } else {
+                Bukkit.getScheduler().runTask(getPlugin(), () ->
+                        openCategoryPage(player, back.category, back.materials, back.page));
+            }
         }
     }
 
@@ -917,7 +1025,8 @@ public class ShopManager implements Listener {
 
     private boolean isCategoryShop(String title) {
         // Category pages are created as "§6§l<Category> §7(Page X/Y)"
-        return title.startsWith("§6§l") && title.contains("§7(Page ");
+        return title.equals("§6§lCustom")
+                || (title.startsWith("§6§l") && title.contains("§7(Page "));
     }
 
     private String formatName(Material material) {

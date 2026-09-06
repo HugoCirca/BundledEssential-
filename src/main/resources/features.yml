@@ -13,6 +13,8 @@ shop: true
 sell: true
 leveling: true
 rewards: true
+autosell: true
+spawner: true
 playtime: true
 dynamic-light: true
 updater: true

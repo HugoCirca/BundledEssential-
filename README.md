@@ -16,6 +16,8 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Waypoints** | `/waypoint` |
 | **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
 | **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
+| **Auto-Sell** | `/autosell` (chest in `/shop` Custom tab) |
+| **Spawner** | _(stackable zombie spawner in `/shop` Custom tab)_ |
 | **Leveling** | `/level` |
 | **Quests & Daily** | `/quest`, `/daily` |
 | **Playtime** | `/playtime` |
@@ -98,7 +100,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 #### Money Sources
 - **Kill mobs** — $0.01 to $10.00 (random)
-- **Playtime** — $1.00 to $3.00 every 5 minutes, scaled up by your level (+10% per level by default)
+- **Playtime** — $2.00 to $5.00 every 5 minutes, scaled up by your level (+10% per level by default, tunable in `config.yml` under `economy:`)
 - **Bounty claims** — Kill a player with a bounty to claim it (20% tax)
 
 #### Shop Categories
@@ -116,6 +118,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - **Nether** — Full Nether set incl. Blackstone, Basalt, Nylium, Netherite
 - **End** — End Stone, Purpur, Chorus, all Shulker Boxes, Dragon Egg, Elytra
 - **New 1.21-26.2** — Copper/Tuff variants, Pale Garden, Resin, Happy Ghast gear, Sulfur & Cinnabar sets, new discs
+- **Custom** — Auto-Sell Chest + Zombie Spawner (barrier icon, bottom-right), see below
 - **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page. No anvil? Use `/shop search <name>` instead (works everywhere, incl. Bedrock)
 - **Bulk buying** — Click any stackable item, then the red/green panes to pick 1-64 (shift-click = 10 at a time), confirm to buy the stack. Unstackables (tools/weapons) still buy instantly
 
@@ -125,6 +128,25 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - Enchanted items sell for bonus money
 - Sell price is 60% of current buy price
 - High-end items (Elytra, Totem, Netherite, Dragon Egg...) keep premium prices
+
+### Auto-Sell Chest
+
+| Command | Description |
+|---------|-------------|
+| `/autosell` | How it works + price |
+| `/autosell give <player> [amount]` | Admin handout (op only) |
+
+- Buy the chest in `/shop` (Custom tab, $500 by default). **Right-click air** holding it to set the sell interval (30s/1m/5m/10m) and pick recipients via player heads (online + offline, equal split). **Sneak + right-click** a placed one to reconfigure it
+- Place it, drop items in by hand or feed it with **hoppers** — contents sell automatically every interval at normal `/sell` prices, split equally between recipients (works for offline players too)
+- Breaking it returns the chest (config kept); explosions destroy it like a normal chest
+- Tune in `config.yml` under `autosell:` (price, default interval, interval options, max recipients)
+
+### Zombie Spawner
+
+- Buy the spawner in `/shop` (Custom tab, $500 by default). Place it for a normal zombie spawner labeled **Zombie 1x**
+- **Right-click** a placed spawner holding another spawner item to consume it and raise the rate (2x, 3x... up to **35x**). Each extra level spawns bonus zombies every spawner cycle
+- Breaking it returns the spawner **with its rate kept**, so relocating loses nothing. Explosions destroy it like normal
+- Tune in `config.yml` under `spawner:` (price, max-multiplier)
 
 ### Leveling
 
@@ -235,10 +257,11 @@ Just push to `main` and a new release is created.
 ## Configuration
 
 Toggle every feature in `plugins/BundledEssential/features.yml` (tpa, home, back,
-waypoints, trade, economy, bounty, pay, shop, sell, leveling, rewards, playtime,
-dynamic-light, updater) — set `false` and restart to disable.
+waypoints, trade, economy, bounty, pay, shop, sell, leveling, rewards, autosell,
+spawner, playtime, dynamic-light, updater) — set `false` and restart to disable.
 Fine-tuning values stay in `config.yml` (leveling rates, light interval,
-`rewards.login` streak payouts and `rewards.daily` multiplier).
+`rewards.login` streak payouts, `rewards.daily` multiplier, `autosell` chest price,
+`spawner` price, playtime base rewards under `economy:`).
 
 All player data is stored automatically in:
 - `plugins/BundledEssential/homes.yml` - Home locations
@@ -246,7 +269,9 @@ All player data is stored automatically in:
 - `plugins/BundledEssential/balances.json` - Player balances
 - `plugins/BundledEssential/levels.json` - Player levels and XP
 - `plugins/BundledEssential/playtime.json` - Player online time
-- `plugins/BundledEssential/rewards.json` - Daily quest progress, login streaks, anti-farm block list
+- `plugins/BundledEssential/rewards.json` - Quest progress, login streaks, anti-farm block list
+- `plugins/BundledEssential/autosell.json` - Auto-sell chest locations + configs
+- `plugins/BundledEssential/spawner.json` - Boosted spawner locations + rates
 - `plugins/BundledEssential/shop.json` - Shop price overrides (delete to reset to defaults)
 
 No manual configuration needed.

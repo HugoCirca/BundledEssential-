@@ -313,7 +313,9 @@ public class RewardManager implements Listener, CommandExecutor {
         String now = today();
         if (now.equals(last)) {
             int streak = e.get("streak").getAsInt();
-            player.sendMessage("§eAlready claimed today! §7Streak: §e" + streak + " day(s)§7. Come back tomorrow.");
+            double lastAmount = e.has("lastAmount") ? e.get("lastAmount").getAsDouble() : 0.0;
+            player.sendMessage("§eAlready claimed today! §7(Day " + streak + " auto-claimed on join: +$"
+                    + Money.format(lastAmount) + ") Come back tomorrow.");
             return;
         }
         String yesterday = LocalDate.now().minusDays(1).toString();
@@ -326,6 +328,7 @@ public class RewardManager implements Listener, CommandExecutor {
         balanceManager.addBalance(player, kept);
         e.addProperty("streak", streak);
         e.addProperty("last", now);
+        e.addProperty("lastAmount", kept);
         saveAll();
         String bonus = "";
         double weekly = cfg("rewards.login.weekly-bonus", DEF_BONUS_WEEKLY);
