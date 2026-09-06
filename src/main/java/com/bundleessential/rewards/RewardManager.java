@@ -9,6 +9,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
@@ -19,12 +20,24 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.enchantment.EnchantItemEvent;
+import org.bukkit.event.entity.EntityBreedEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityTameEvent;
+import org.bukkit.event.inventory.BrewEvent;
+import org.bukkit.event.inventory.FurnaceExtractEvent;
+import org.bukkit.event.player.PlayerBedEnterEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerLevelChangeEvent;
+import org.bukkit.event.player.PlayerShearEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -47,13 +60,32 @@ import java.util.UUID;
  */
 public class RewardManager implements Listener, CommandExecutor {
 
+    // CHOP stays completable for anyone holding one, but is out of the pool
+    // for now (tree-feller plugins eat the break events).
+    private static final QuestType[] QUEST_POOL = {
+        QuestType.MINE_STONE, QuestType.MINE_ORE, QuestType.FARM, QuestType.HUNT,
+        QuestType.FISH, QuestType.BREED, QuestType.TAME, QuestType.ENCHANT,
+        QuestType.SMELT, QuestType.BREW, QuestType.EAT, QuestType.SHEAR,
+        QuestType.SLEEP, QuestType.EXPLORE, QuestType.LEVELS
+    };
+
     private enum QuestType {
         MINE_STONE(48, 96, 30.0, 50.0, "Mine %d stone/cobble/deepslate"),
         MINE_ORE(8, 16, 60.0, 90.0, "Mine %d ores"),
         CHOP(24, 48, 30.0, 50.0, "Chop %d logs"),
         FARM(24, 48, 30.0, 50.0, "Harvest %d ripe crops"),
         HUNT(10, 20, 45.0, 75.0, "Kill %d hostile mobs"),
-        FISH(4, 8, 25.0, 40.0, "Catch %d fish");
+        FISH(4, 8, 25.0, 40.0, "Catch %d fish"),
+        BREED(3, 6, 40.0, 60.0, "Breed %d animals"),
+        TAME(1, 2, 40.0, 60.0, "Tame %d animals"),
+        ENCHANT(2, 4, 45.0, 65.0, "Enchant %d items"),
+        SMELT(16, 32, 30.0, 50.0, "Smelt %d items"),
+        BREW(3, 6, 40.0, 60.0, "Brew %d potions"),
+        EAT(8, 12, 30.0, 45.0, "Eat %d food"),
+        SHEAR(3, 6, 30.0, 45.0, "Shear %d sheep"),
+        SLEEP(1, 1, 20.0, 30.0, "Sleep %d night(s)"),
+        EXPLORE(1, 1, 25.0, 35.0, "Travel to %d dimension(s)"),
+        LEVELS(3, 5, 40.0, 60.0, "Gain %d XP levels");
 
         final int minTarget;
         final int maxTarget;
@@ -216,7 +248,7 @@ public class RewardManager implements Listener, CommandExecutor {
     }
 
     private JsonObject newQuest(Player player) {
-        QuestType type = QuestType.values()[random.nextInt(QuestType.values().length)];
+        QuestType type = QUEST_POOL[random.nextInt(QUEST_POOL.length)];
         int target = type.minTarget + random.nextInt(type.maxTarget - type.minTarget + 1);
         double mult = cfg("rewards.daily.reward-multiplier", DEF_DAILY_MULT);
         if (mult <= 0) {
@@ -477,33 +509,90 @@ public class RewardManager implements Listener, CommandExecutor {
         }, 60L);
     }
 
-    @EventHandler(ignoreCancelled = true)
+    private final Set<String> countedBreaks = new HashSet<>();
+
+    private static QuestType questTypeForBreak(Material type) {
+        if (isPlainStone(type)) {
+            return QuestType.MINE_STONE;
+        }
+        if (ORES.contains(type)) {
+            return QuestType.MINE_ORE;
+        }
+        if (isLog(type)) {
+            return QuestType.CHOP;
+        }
+        switch (type) {
+            case WHEAT, CARROTS, POTATOES, BEETROOTS, NETHER_WART, COCOA,
+                    SWEET_BERRY_BUSH, MELON, PUMPKIN, SUGAR_CANE, CACTUS -> {
+                return QuestType.FARM;
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
+    private static String locKey(Location loc) {
+        return loc.getWorld().getUID() + "|" + loc.getBlockX() + "|" + loc.getBlockY() + "|" + loc.getBlockZ();
+    }
+
+    /**
+     * MONITOR + verify-by-outcome instead of trusting cancellation state.
+     * Tree-fellers (SmoothTimber) cancel the original break and fell the tree
+     * animated over ticks; protection plugins cancel with nothing breaking.
+     * Counting only blocks that actually changed is correct for both cases.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
-        if (getQuest(player.getUniqueId()) == null) {
+        JsonObject q = getQuest(player.getUniqueId());
+        if (q == null || (q.has("claimed") && q.get("claimed").getAsBoolean())) {
             return;
         }
-        if (placed.remove(key(event.getBlock())) != null) {
+        QuestType need;
+        try {
+            need = QuestType.valueOf(q.get("type").getAsString());
+        } catch (Exception e) {
+            return;
+        }
+        Block block = event.getBlock();
+        Material type = block.getType();
+        if (questTypeForBreak(type) != need) {
+            return;
+        }
+        if (need == QuestType.FARM && !isMature(block)) {
+            return;
+        }
+        if (placed.remove(key(block)) != null) {
             return; // player-placed: never counts (shop-bought, silk-touch, etc.)
         }
-        Material type = event.getBlock().getType();
-        if (isPlainStone(type)) {
-            addProgress(player, QuestType.MINE_STONE, 1);
-        } else if (ORES.contains(type)) {
-            addProgress(player, QuestType.MINE_ORE, 1);
-        } else if (isLog(type)) {
-            addProgress(player, QuestType.CHOP, 1);
-        } else {
-            switch (type) {
-                case WHEAT, CARROTS, POTATOES, BEETROOTS, NETHER_WART, COCOA,
-                        SWEET_BERRY_BUSH, MELON, PUMPKIN, SUGAR_CANE, CACTUS -> {
-                    if (isMature(event.getBlock())) {
-                        addProgress(player, QuestType.FARM, 1);
-                    }
-                }
-                default -> {
-                }
+        Location loc = block.getLocation().clone();
+        UUID pid = player.getUniqueId();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> verifyBreak(pid, need, loc, type, true), 1L);
+    }
+
+    private void verifyBreak(UUID pid, QuestType need, Location loc, Material before, boolean retry) {
+        Player player = Bukkit.getPlayer(pid);
+        if (player == null) {
+            return;
+        }
+        Block after;
+        try {
+            after = loc.getBlock();
+        } catch (Exception e) {
+            return;
+        }
+        if (after.getType() != before) {
+            String ck = locKey(loc);
+            if (countedBreaks.add(ck)) {
+                addProgress(player, need, 1);
+                Bukkit.getScheduler().runTaskLater(plugin, () -> countedBreaks.remove(ck), 70L);
             }
+            return;
+        }
+        if (retry) {
+            // Animated fellers break over ticks: one slow re-check catches those.
+            Bukkit.getScheduler().runTaskLater(plugin, () -> verifyBreak(pid, need, loc, before, false), 60L);
         }
     }
 
@@ -535,6 +624,81 @@ public class RewardManager implements Listener, CommandExecutor {
         }
         if (HOSTILE.contains(event.getEntityType().name())) {
             addProgress(killer, QuestType.HUNT, 1);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBreed(EntityBreedEvent event) {
+        if (event.getBreeder() instanceof Player player) {
+            addProgress(player, QuestType.BREED, 1);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onTame(EntityTameEvent event) {
+        if (event.getOwner() instanceof Player player) {
+            addProgress(player, QuestType.TAME, 1);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onEnchant(EnchantItemEvent event) {
+        addProgress(event.getEnchanter(), QuestType.ENCHANT, 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onSmelt(FurnaceExtractEvent event) {
+        addProgress(event.getPlayer(), QuestType.SMELT, event.getItemAmount());
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onBrew(BrewEvent event) {
+        int potions = 0;
+        try {
+            for (org.bukkit.inventory.ItemStack result : event.getResults()) {
+                if (result != null && result.getType() != Material.AIR) {
+                    potions += result.getAmount();
+                }
+            }
+        } catch (Exception ignored) {}
+        if (potions <= 0) {
+            return;
+        }
+        final int brewed = potions;
+        event.getContents().getViewers().stream()
+                .filter(Player.class::isInstance)
+                .map(Player.class::cast)
+                .findFirst()
+                .ifPresent(player -> addProgress(player, QuestType.BREW, brewed));
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onEat(PlayerItemConsumeEvent event) {
+        if (event.getItem().getType().isEdible()) {
+            addProgress(event.getPlayer(), QuestType.EAT, 1);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onShear(PlayerShearEntityEvent event) {
+        addProgress(event.getPlayer(), QuestType.SHEAR, 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onSleep(PlayerBedEnterEvent event) {
+        addProgress(event.getPlayer(), QuestType.SLEEP, 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        addProgress(event.getPlayer(), QuestType.EXPLORE, 1);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onLevelGain(PlayerLevelChangeEvent event) {
+        int gain = event.getNewLevel() - event.getOldLevel();
+        if (gain > 0) {
+            addProgress(event.getPlayer(), QuestType.LEVELS, gain);
         }
     }
 }

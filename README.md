@@ -176,7 +176,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/quest claim` | Claim a finished quest — a new one starts instantly, no waiting |
 | `/daily` | Claim daily streak reward, auto-granted on join (aliases `/login`, `/claim`, `/streak`) |
 
-- **Quests** — repeatable tasks: mine stone/ores, chop logs, harvest ripe crops, hunt hostiles, catch fish (real fish only — no junk). Rewards $25-90 (ores and hunts pay most). Claiming instantly rolls your next quest
+- **Quests** — 15 repeatable tasks: mine stone/ores, harvest crops, hunt hostiles, catch real fish, breed/tame/shear animals, enchant, smelt, brew, eat, sleep, visit dimensions, gain XP levels. Rewards $20-90 (ores, hunts and enchants pay most). Claiming instantly rolls your next quest
 - **Login streak** — claim every day to grow the streak: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850)
 - Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
 - Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)
