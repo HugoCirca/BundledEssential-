@@ -11,6 +11,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -57,7 +58,9 @@ public class UpdateManager implements CommandExecutor {
             public void run() {
                 try {
                     String currentVersion = plugin.getDescription().getVersion();
-                    String latestTag = getLatestTag();
+                    String[] info = getReleaseInfo();
+                    String latestTag = info[0];
+                    String digest = info[1];
                     if (latestTag == null) {
                         sender.sendMessage("§cFailed to check for updates.");
                         return;
@@ -73,7 +76,7 @@ public class UpdateManager implements CommandExecutor {
                     if (isNewerVersion(latestVersion, currentVersion)) {
                         sender.sendMessage("§eNew update found: v" + latestVersion + " (current: " + currentVersion + ")");
                         sender.sendMessage("§eDownloading...");
-                        boolean success = downloadUpdate(latestTag);
+                        boolean success = downloadUpdate(latestTag, digest);
                         if (success) {
                             sender.sendMessage("§aUpdate downloaded! It will be applied on next restart.");
                         } else {
@@ -202,7 +205,9 @@ public class UpdateManager implements CommandExecutor {
             public void run() {
                 try {
                     String currentVersion = plugin.getDescription().getVersion();
-                    String latestTag = getLatestTag();
+                    String[] info = getReleaseInfo();
+                    String latestTag = info[0];
+                    if (latestTag == null) return;
                     String latestVersion = latestTag.replace("v", "");
 
                     if (latestVersion == null || latestVersion.equals(currentVersion)) {
@@ -211,7 +216,7 @@ public class UpdateManager implements CommandExecutor {
 
                     if (isNewerVersion(latestVersion, currentVersion)) {
                         plugin.getLogger().info("New update found: v" + latestVersion + " (current: " + currentVersion + ")");
-                        downloadUpdate(latestTag);
+                        downloadUpdate(latestTag, info[1]);
                     }
                 } catch (Exception e) {
                     plugin.getLogger().log(Level.WARNING, "Failed to check for updates", e);
@@ -220,7 +225,50 @@ public class UpdateManager implements CommandExecutor {
         }.runTaskAsynchronously(plugin);
     }
 
+    /** Returns {latestTag or null, sha256 digest or null} from one release-API call. */
+    private String[] getReleaseInfo() throws IOException {
+        String json = fetchReleaseJson();
+        return new String[]{parseTag(json), parseDigest(json)};
+    }
+
     private String getLatestTag() throws IOException {
+        return parseTag(fetchReleaseJson());
+    }
+
+    /** First asset SHA-256 digest published by the API (ours is the only asset). */
+    private String parseDigest(String json) {
+        for (String prefix : new String[]{"\"digest\":\"sha256:", "\"digest\": \"sha256:"}) {
+            int idx = json.indexOf(prefix);
+            if (idx != -1) {
+                int start = idx + prefix.length();
+                int end = json.indexOf("\"", start);
+                if (end != -1) return json.substring(start, end).toLowerCase();
+            }
+        }
+        return null;
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            try (InputStream in = Files.newInputStream(file)) {
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    md.update(buffer, 0, len);
+                }
+            }
+            StringBuilder sb = new StringBuilder();
+            for (byte b : md.digest()) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IOException("SHA-256 unavailable", e);
+        }
+    }
+
+    private String fetchReleaseJson() throws IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(API_URL).openConnection();
         conn.setRequestProperty("Accept", "application/vnd.github.v3+json");
         conn.setRequestProperty("User-Agent", "BundledEssential-Updater");
@@ -240,6 +288,11 @@ public class UpdateManager implements CommandExecutor {
         reader.close();
 
         String json = sb.toString();
+        reader.close();
+        return json;
+    }
+
+    private String parseTag(String json) {
         int tagIdx = json.indexOf("\"tag_name\":\"");
         if (tagIdx == -1) return null;
 
@@ -262,7 +315,7 @@ public class UpdateManager implements CommandExecutor {
         return false;
     }
 
-    private boolean downloadUpdate(String tag) {
+    private boolean downloadUpdate(String tag, String expectedSha256) {
         try {
             Path updateDir = getUpdateDir();
             Files.createDirectories(updateDir);
@@ -290,7 +343,15 @@ public class UpdateManager implements CommandExecutor {
             in.close();
 
             long size = Files.size(updateFile);
-            if (size < MIN_JAR_BYTES) {
+            if (expectedSha256 != null && !expectedSha256.isEmpty()) {
+                String actual = sha256(updateFile);
+                String want = expectedSha256.toLowerCase().replace("sha256:", "");
+                if (!actual.equals(want)) {
+                    Files.deleteIfExists(updateFile);
+                    plugin.getLogger().warning("Download checksum mismatch (want " + want + ", got " + actual + "), deleted.");
+                    return false;
+                }
+            } else if (size < MIN_JAR_BYTES) {
                 Files.deleteIfExists(updateFile);
                 plugin.getLogger().warning("Downloaded update too small (" + size + " bytes), deleted.");
                 return false;

@@ -190,7 +190,7 @@ The plugin automatically checks for new versions on startup via GitHub Releases.
 
 No forced restarts — updates apply naturally.
 
-- Downloads are size-verified; corrupt or partial files are deleted, never applied
+- Downloads are checksum-verified against the release's published SHA-256 (size check as fallback); bad files are deleted, never applied
 - The replaced jar is kept as a versioned backup in `plugins/BundledEssential-backups/` (last 3)
 - A failed apply restores the backup automatically
 - `/bundledupdate` tells you if an update is already pending on disk
