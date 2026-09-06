@@ -158,6 +158,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/jobs threshold auto [block]` | Back to random goals |
 
 - One job at a time, earnings stack with playtime/mob rewards, no payout spam
+- **Jackpot**: every paid action rolls 5% for x3, 1% for x10
 - **Miner** — ores pay instantly (diamond $18, gold $6, iron $4...), any natural cave block pays small cash, plus a stone meter with a live boss bar: every 64-128 stone/cobble/deepslate hits a $13-26 quota payout
 - **Woodcutter** — $0.50 per log, **Farmer** — ripe crops only, **Fisher** — per catch incl. treasure, **Hunter** — hostile mobs only (passives pay nothing)
 - Player-placed ores/logs/stone never pay, and plain stone pays only via the meter (no cobble-generator AFK farms)

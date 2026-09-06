@@ -58,6 +58,11 @@ public class JobsManager implements Listener, CommandExecutor {
     private static final double STONE_PAY_EACH = 0.20;
     private static final int THRESHOLD_MIN = 16;
     private static final int THRESHOLD_MAX = 1024;
+    // Jackpot: every paid action rolls for a multiplied payout
+    private static final double JACKPOT_CHANCE_BIG = 0.01;
+    private static final double JACKPOT_MULT_BIG = 10.0;
+    private static final double JACKPOT_CHANCE_SMALL = 0.05;
+    private static final double JACKPOT_MULT_SMALL = 3.0;
     private static final long BAR_IDLE_TICKS = 200L; // hide boss bar after 10s idle
     private static final List<String> STONE_TYPES = Arrays.asList("STONE", "COBBLESTONE", "DEEPSLATE", "COBBLED_DEEPSLATE");
 
@@ -118,16 +123,26 @@ public class JobsManager implements Listener, CommandExecutor {
         return Math.round(earned.get(job).getAsDouble() * 100.0) / 100.0;
     }
 
-    private void pay(Player player, String job, double amount) {
-        if (amount <= 0) return;
-        balanceManager.addBalance(player, amount);
+    private double pay(Player player, String job, double amount) {
+        if (amount <= 0) return 0.0;
+        double mult = 1.0;
+        double roll = random.nextDouble();
+        if (roll < JACKPOT_CHANCE_BIG) mult = JACKPOT_MULT_BIG;
+        else if (roll < JACKPOT_CHANCE_SMALL) mult = JACKPOT_MULT_SMALL;
+        double finalAmount = Math.round(amount * mult * 100.0) / 100.0;
+        balanceManager.addBalance(player, finalAmount);
         JsonObject earned = entry(player.getUniqueId()).getAsJsonObject("earned");
         double total = earned.has(job) ? earned.get(job).getAsDouble() : 0.0;
-        earned.addProperty(job, Math.round((total + amount) * 100.0) / 100.0);
+        earned.addProperty(job, Math.round((total + finalAmount) * 100.0) / 100.0);
         try {
             player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-                    new TextComponent("§a+$" + Money.format(amount) + " §7(" + job + ")"));
+                    new TextComponent("§a+$" + Money.format(finalAmount) + " §7(" + job + ")"
+                            + (mult > 1.0 ? " §6§lx" + (int) mult + " JACKPOT!" : "")));
         } catch (Exception ignored) {}
+        if (mult > 1.0) {
+            player.sendMessage("§6§lJACKPOT! §e+$" + Money.format(finalAmount) + " §7(" + job + " x" + (int) mult + ")");
+        }
+        return finalAmount;
     }
 
     private static String key(Block block) {
@@ -176,8 +191,8 @@ public class JobsManager implements Listener, CommandExecutor {
         boolean custom = s.get("custom").getAsBoolean();
         if (count >= target) {
             double payout = Math.round(target * STONE_PAY_EACH * 100.0) / 100.0;
-            pay(player, "miner", payout);
-            player.sendMessage("§6§lQUOTA MET! §e+$" + Money.format(payout) + " §7for mining " + target + " " + formatStone(key) + ".");
+            double got = pay(player, "miner", payout);
+            player.sendMessage("§6§lQUOTA MET! §e+$" + Money.format(got) + " §7for mining " + target + " " + formatStone(key) + ".");
             count = 0;
             if (!custom) target = randomStoneTarget();
         }
@@ -339,6 +354,7 @@ public class JobsManager implements Listener, CommandExecutor {
         player.sendMessage("§eFarmer §7- ripe crops (wheat $1, melon/pumpkin $1.50...)");
         player.sendMessage("§eFisher §7- catches (fish $1-2, treasure up to $10)");
         player.sendMessage("§eHunter §7- hostile mobs (zombie $1, enderman $3, dragon $500...)");
+        player.sendMessage("§6Every action can §lJACKPOT§7: 5% for x3, 1% for x10");
         player.sendMessage("§7/jobs threshold §f- stone goals + bossbar progress");
     }
 
