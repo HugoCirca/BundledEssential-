@@ -25,8 +25,12 @@ jar {
     archiveVersion.set('1.0.33')
 }
 
+// Captured here (configuration time) so processResources never touches
+// the Gradle script object at execution time (configuration-cache safe).
+def pluginVersion = project.version.toString()
+
 processResources {
     filesMatching('plugin.yml') {
-        expand version: project.version
+        expand version: pluginVersion
     }
 }
