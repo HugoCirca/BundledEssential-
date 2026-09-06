@@ -190,8 +190,9 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | Command | Description |
 |---------|-------------|
 | `/chunkload [name]` | Force-load the chunk you stand in (free, max 3) |
+| `/chunkload buy` | +1 loader slot for $10 (no cap) |
 | `/chunkdelete <name>` | Remove one of your chunkloaders |
-| `/showchunk [name]` | Outline your loaded chunks + list them |
+| `/showchunk [name]` | Outline your loaded chunks + list them (✓ = really force-loaded) |
 
 - Loaders keep their chunk ticking (farms, hoppers, spawners all run), even while you are offline. No upkeep, no fees
 - Loaders re-apply automatically after every restart (force-loads don't survive one)

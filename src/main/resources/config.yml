@@ -33,6 +33,10 @@ rewards:
 dynamic-light:
   interval-ticks: 10
 
+# Chunkloaders (/chunkload) — named force-loaded chunks, 3 free per player.
+chunkload:
+  upgrade-price: 10.0
+
 # Auto-sell chest (Custom category) — sells chest contents on a timer, split equally.
 # Configure: right-click air holding it (interval + recipients).
 # Reconfigure placed one: sneak + right-click it. Hoppers feed it normally.

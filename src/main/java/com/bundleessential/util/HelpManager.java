@@ -46,7 +46,7 @@ public class HelpManager implements CommandExecutor {
         pages.add("§4§lEconomy\n§1/pay <p> <amt>\n§0- send money (5% tax)\n§1/bounty <p> [amt]\n§0- put a price on heads\n§1/paytax\n§0- clear your tax debt\n§1/repair [full]\n§0- fix the held item");
         pages.add("§4§lQuests & Daily\n§1/quest\n§0- see the current task\n§1/quest claim\n§0- collect pay, get next\n§1/quest skip\n§0- ditch it, roll another\n§1/daily\n§0- claim streak, 1-day grace");
         pages.add("§4§lCustom Items\n§1/shop §0Custom tab:\n§1Auto-Sell Chest\n§0- chest that sells itself on a timer, split pay\n§1Zombie Spawner\n§0- right-click it to raise rate to 35x\n\n§1/autosell\n§0- chest help and prices\n§1/autosell give <p>\n§0- hand out chests (ops)");
-        pages.add("§4§lOther\n§1/level [player]\n§0- XP level and bonus\n§1/playtime [top|name]\n§0- times and leaderboard\n§1/bundledhelp\n§0- this book again\n§1/bundledupdate\n§0- fetch plugin updates");
+        pages.add("§4§lOther\n§1/level [player]\n§0- XP level and bonus\n§1/playtime [top|name]\n§0- times and leaderboard\n§1/chunkload [name]\n§0- keep a chunk ticking\n§1/showchunk [name]\n§0- outline your chunks\n§1/bundledupdate\n§0- fetch updates");
         meta.setPages(pages);
         book.setItemMeta(meta);
         return book;

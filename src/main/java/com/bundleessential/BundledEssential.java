@@ -8,6 +8,7 @@ import com.bundleessential.economy.BountyManager;
 import com.bundleessential.economy.PriceManager;
 import com.bundleessential.economy.SellManager;
 import com.bundleessential.economy.ShopManager;
+import com.bundleessential.giveaway.GiveawayManager;
 import com.bundleessential.level.LevelManager;
 import com.bundleessential.level.PlaytimeManager;
 import com.bundleessential.light.DynamicLightManager;
@@ -47,6 +48,7 @@ public class BundledEssential extends JavaPlugin {
     private AutoSellManager autosellManager;
     private SpawnerManager spawnerManager;
     private ChunkLoadManager chunkloadManager;
+    private GiveawayManager giveawayManager;
     private PlaytimeManager playtimeManager;
     private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
@@ -101,7 +103,10 @@ public class BundledEssential extends JavaPlugin {
                 spawnerManager = new SpawnerManager(this);
             }
             if (features.isEnabled("chunkload")) {
-                chunkloadManager = new ChunkLoadManager(this);
+                chunkloadManager = new ChunkLoadManager(this, balanceManager);
+            }
+            if (balanceManager != null) {
+                giveawayManager = new GiveawayManager(balanceManager);
             }
             if (features.isEnabled("playtime")) {
                 playtimeManager = new PlaytimeManager(this);
@@ -279,6 +284,9 @@ public class BundledEssential extends JavaPlugin {
             getCommand("chunkload").setExecutor(chunkloadManager);
             getCommand("chunkdelete").setExecutor(chunkloadManager);
             getCommand("showchunk").setExecutor(chunkloadManager);
+        }
+        if (giveawayManager != null) {
+            getCommand("giveaway").setExecutor(giveawayManager);
         }
         if (playtimeManager != null) {
             getCommand("playtime").setExecutor(playtimeManager);

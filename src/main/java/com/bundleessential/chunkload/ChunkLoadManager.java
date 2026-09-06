@@ -1,5 +1,8 @@
 package com.bundleessential.chunkload;
 
+import com.bundleessential.economy.BalanceManager;
+import com.bundleessential.util.Money;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -40,15 +43,19 @@ public class ChunkLoadManager implements CommandExecutor {
     private static final int SHOW_RUNS = 10;
 
     private final JavaPlugin plugin;
+    private final BalanceManager balance;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Path file;
     private final JsonObject data = new JsonObject();
 
-    public ChunkLoadManager(JavaPlugin plugin) {
+    public ChunkLoadManager(JavaPlugin plugin, BalanceManager balance) {
         this.plugin = plugin;
+        this.balance = balance;
         this.file = plugin.getDataFolder().toPath().resolve("chunkloaders.json");
         loadAll();
         applyAll();
+        // Worlds that load after us (multiverse-style): re-apply once delayed.
+        Bukkit.getScheduler().runTaskLater(plugin, this::applyAll, 1200L);
         startSaveTask();
     }
 
@@ -68,6 +75,30 @@ public class ChunkLoadManager implements CommandExecutor {
             all.add(key, new JsonArray());
         }
         return all.getAsJsonArray(key);
+    }
+
+    private JsonObject limits() {
+        if (!data.has("limits") || !data.get("limits").isJsonObject()) {
+            data.add("limits", new JsonObject());
+        }
+        return data.getAsJsonObject("limits");
+    }
+
+    private int limitOf(UUID playerId) {
+        int extra = 0;
+        try {
+            extra = Math.max(0, limits().get(playerId.toString()).getAsInt());
+        } catch (Exception ignored) {}
+        return MAX_PER_PLAYER + extra;
+    }
+
+    private double upgradePrice() {
+        try {
+            double p = plugin.getConfig().getDouble("chunkload.upgrade-price", 10.0);
+            return p > 0 ? Math.round(p * 100.0) / 100.0 : 10.0;
+        } catch (Exception e) {
+            return 10.0;
+        }
     }
 
     private static String nameOf(JsonObject e) {
@@ -194,19 +225,29 @@ public class ChunkLoadManager implements CommandExecutor {
     }
 
     private void handleLoad(Player player, String[] args) {
+        if (args.length >= 1 && args[0].equalsIgnoreCase("buy")) {
+            buySlot(player);
+            return;
+        }
         Chunk chunk = player.getLocation().getChunk();
         String worldId = player.getWorld().getUID().toString();
         int cx = chunk.getX();
         int cz = chunk.getZ();
 
         JsonArray mine = playerLoaders(player.getUniqueId());
-        if (mine.size() >= MAX_PER_PLAYER) {
-            player.sendMessage("§cChunkloader limit reached! §7Max " + MAX_PER_PLAYER + " — delete one with §e/chunkdelete <name>");
+        int limit = limitOf(player.getUniqueId());
+        if (mine.size() >= limit) {
+            player.sendMessage("§cChunkloader limit reached! §7(" + limit + " max — §e/chunkload buy §7for +1 at $"
+                    + Money.format(upgradePrice()) + ", or delete one)");
             return;
         }
         String name = args.length == 0 ? "loader-" + (mine.size() + 1) : String.join(" ", args).trim();
         if (name.isEmpty()) {
             name = "loader-" + (mine.size() + 1);
+        }
+        if (name.equalsIgnoreCase("buy")) {
+            player.sendMessage("§c“buy” is reserved — pick another name!");
+            return;
         }
         if (name.length() > 24) {
             name = name.substring(0, 24);
@@ -244,8 +285,31 @@ public class ChunkLoadManager implements CommandExecutor {
         }
         saveAll();
         player.sendMessage("§aChunk loaded! §e" + name + " §7(" + player.getWorld().getName()
-                + " " + cx + ", " + cz + ") §7— " + mine.size() + "/" + MAX_PER_PLAYER + " used.");
+                + " " + cx + ", " + cz + ") §7— " + mine.size() + "/" + limitOf(player.getUniqueId()) + " used.");
         player.sendMessage("§7See it with §e/showchunk");
+    }
+
+    /** Paid limit upgrade: +1 loader slot. */
+    private void buySlot(Player player) {
+        if (balance == null) {
+            player.sendMessage("§cEconomy is off — slots can't be bought right now.");
+            return;
+        }
+        double price = upgradePrice();
+        if (!balance.removeBalance(player, price)) {
+            player.sendMessage("§cNot enough money! Extra loader slot costs §e$" + Money.format(price));
+            return;
+        }
+        JsonObject all = limits();
+        String key = player.getUniqueId().toString();
+        int extra = 0;
+        try {
+            extra = Math.max(0, all.get(key).getAsInt());
+        } catch (Exception ignored) {}
+        all.addProperty(key, extra + 1);
+        saveAll();
+        int limit = limitOf(player.getUniqueId());
+        player.sendMessage("§aLoader limit raised to §e" + limit + "§a! §7(-$" + Money.format(price) + ")");
     }
 
     private void handleDelete(Player player, String[] args) {
@@ -346,7 +410,12 @@ public class ChunkLoadManager implements CommandExecutor {
             if (world == null) {
                 continue;
             }
-            player.sendMessage("§e" + nameOf(e) + " §7— " + world.getName() + " §f" + cx + "§7, §f" + cz);
+            boolean forced = false;
+            try {
+                forced = world.isChunkForceLoaded(cx, cz);
+            } catch (Exception ignored) {}
+            player.sendMessage("§e" + nameOf(e) + (forced ? " §a✓" : " §c✗")
+                    + " §7— " + world.getName() + " §f" + cx + "§7, §f" + cz);
             if (world.equals(player.getWorld())) {
                 outlines.add(new Outline(world, cx, cz));
             }

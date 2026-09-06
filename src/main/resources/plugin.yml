@@ -99,6 +99,9 @@ commands:
   showchunk:
     description: Highlight your loaded chunks
     usage: /showchunk [name]
+  giveaway:
+    description: Console giveaway — give money to random winners
+    usage: /giveaway <amount> [count|all|<player>]
   playtime:
     description: Check playtime or view the leaderboard
     usage: /playtime [leaderboard|<player>]
