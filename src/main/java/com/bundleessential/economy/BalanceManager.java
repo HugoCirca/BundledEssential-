@@ -151,6 +151,7 @@ public class BalanceManager implements Listener, CommandExecutor {
 
         Objective obj = board.registerNewObjective("ebalance", Criteria.DUMMY, "§6§lE-balance");
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+        hideSidebarNumbers(obj);
 
         Score line1 = obj.getScore("=============");
         line1.setScore(3);
@@ -162,6 +163,20 @@ public class BalanceManager implements Listener, CommandExecutor {
         line4.setScore(0);
 
         player.setScoreboard(board);
+    }
+
+    /**
+     * Hides the red sidebar numbers on Paper 1.20.5+ via blank number format.
+     * Done by reflection so the plugin still compiles/runs on older Spigot —
+     * there the numbers simply stay visible (vanilla forces them).
+     */
+    private void hideSidebarNumbers(Objective obj) {
+        try {
+            Class<?> formatClass = Class.forName("io.papermc.paper.scoreboard.numbers.NumberFormat");
+            Object blank = formatClass.getMethod("blank").invoke(null);
+            obj.getClass().getMethod("numberFormat", formatClass).invoke(obj, blank);
+        } catch (Exception ignored) {
+        }
     }
 
     @EventHandler

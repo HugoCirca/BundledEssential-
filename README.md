@@ -17,7 +17,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
 | **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
 | **Leveling** | `/level` |
-| **Jobs** | `/jobs` |
+| **Daily & Login** | `/daily`, `/login` |
 | **Playtime** | `/playtime` |
 | **Dynamic Light** | _(automatic — hold a light)_ |
 | **Help** | `/bundledhelp` |
@@ -144,24 +144,18 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/playtime <player>` | Check another player's time (works offline) |
 | `/playtime leaderboard` | Top 10 players by playtime |
 
-### Jobs
+### Daily & Login
 
 | Command | Description |
 |---------|-------------|
-| `/jobs` | Show your job and earnings |
-| `/jobs list` | Show all jobs and payouts |
-| `/jobs join <name>` | Join miner, woodcutter, farmer, fisher or hunter |
-| `/jobs leave` | Leave your job (earnings kept) |
-| `/jobs info [player]` | Check job earnings |
-| `/jobs threshold` | Show stone meter progress per block |
-| `/jobs threshold select <block> <number>` | Custom stone goal (bigger = bigger pay) |
-| `/jobs threshold auto [block]` | Back to random goals |
+| `/daily` | Check today's random quest progress |
+| `/daily claim` | Claim today's quest reward |
+| `/login` | Claim daily streak reward (aliases `/claim`, `/streak`, `/dailylogin`) |
 
-- One job at a time, earnings stack with playtime/mob rewards, no payout spam
-- **Jackpot**: every paid action rolls 5% for x3, 1% for x10
-- **Miner** — ores pay instantly (diamond $18, gold $6, iron $4...), any natural cave block pays small cash, plus a stone meter with a live boss bar: every 64-128 stone/cobble/deepslate hits a $13-26 quota payout
-- **Woodcutter** — $0.50 per log, **Farmer** — ripe crops only, **Fisher** — per catch incl. treasure, **Hunter** — hostile mobs only (passives pay nothing)
-- Player-placed ores/logs/stone never pay, and plain stone pays only via the meter (no cobble-generator AFK farms)
+- **Daily quest** — one random quest per calendar day: mine stone/ores, chop logs, harvest ripe crops, hunt hostiles, catch fish. Rewards $40-120 (ores and hunts pay most). Resets at midnight server time
+- **Login streak** — claim every day to grow the streak: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850)
+- Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
+- Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)
 
 ### Dynamic Light
 
@@ -176,7 +170,7 @@ No command — just hold anything with a light property in either hand and it gl
 
 | Command | Description |
 |---------|-------------|
-| `/bundledhelp` | Show all available commands |
+| `/bundledhelp` | Get the guide book with all commands |
 | `/bundleversion` | Show the installed plugin version |
 
 ---
@@ -239,9 +233,10 @@ Just push to `main` and a new release is created.
 ## Configuration
 
 Toggle every feature in `plugins/BundledEssential/features.yml` (tpa, home, back,
-waypoints, trade, economy, bounty, pay, shop, sell, leveling, playtime,
+waypoints, trade, economy, bounty, pay, shop, sell, leveling, rewards, playtime,
 dynamic-light, updater) — set `false` and restart to disable.
-Fine-tuning values stay in `config.yml`.
+Fine-tuning values stay in `config.yml` (leveling rates, light interval,
+`rewards.login` streak payouts and `rewards.daily` multiplier).
 
 All player data is stored automatically in:
 - `plugins/BundledEssential/homes.yml` - Home locations
@@ -249,6 +244,7 @@ All player data is stored automatically in:
 - `plugins/BundledEssential/balances.json` - Player balances
 - `plugins/BundledEssential/levels.json` - Player levels and XP
 - `plugins/BundledEssential/playtime.json` - Player online time
+- `plugins/BundledEssential/rewards.json` - Daily quest progress, login streaks, anti-farm block list
 - `plugins/BundledEssential/shop.json` - Shop price overrides (delete to reset to defaults)
 
 No manual configuration needed.

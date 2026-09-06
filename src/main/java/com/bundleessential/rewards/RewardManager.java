@@ -5,6 +5,8 @@ import com.bundleessential.economy.BountyManager;
 import com.bundleessential.util.Money;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -18,6 +20,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -29,6 +32,8 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -72,6 +77,16 @@ public class RewardManager implements Listener, CommandExecutor {
     private static final double DEF_BONUS_WEEKLY = 50.0;
     private static final double DEF_BONUS_MONTHLY = 200.0;
     private static final double DEF_DAILY_MULT = 1.0;
+
+    // Anti-farm: player-placed blocks never count toward quests (covers shop-bought
+    // ores, silk-touch recycle, place-and-break loops). Keyed by coords, LRU-capped.
+    private static final int PLACED_CAP = 20000;
+    private final LinkedHashMap<String, Boolean> placed = new LinkedHashMap<String, Boolean>(1024, 0.75f, false) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+            return size() > PLACED_CAP;
+        }
+    };
 
     private static final long SAVE_INTERVAL_TICKS = 6000L;
 
@@ -144,10 +159,26 @@ public class RewardManager implements Listener, CommandExecutor {
         } catch (IOException e) {
             plugin.getLogger().warning("Failed to load rewards.json");
         }
+        if (data.has("placed") && data.get("placed").isJsonArray()) {
+            for (JsonElement el : data.getAsJsonArray("placed")) {
+                if (placed.size() >= PLACED_CAP) {
+                    break;
+                }
+                try {
+                    placed.put(el.getAsString(), Boolean.TRUE);
+                } catch (Exception ignored) {
+                }
+            }
+        }
     }
 
     public void saveAll() {
         try {
+            JsonArray arr = new JsonArray();
+            for (String k : placed.keySet()) {
+                arr.add(k);
+            }
+            data.add("placed", arr);
             Files.write(file, gson.toJson(data).getBytes());
         } catch (IOException e) {
             plugin.getLogger().warning("Failed to save rewards.json");
@@ -393,11 +424,39 @@ public class RewardManager implements Listener, CommandExecutor {
         return false;
     }
 
+    private static String key(Block block) {
+        return block.getWorld().getUID() + "|" + block.getX() + "|" + block.getY() + "|" + block.getZ();
+    }
+
+    private static boolean isQuestPlaceBlock(Material type) {
+        if (isPlainStone(type) || ORES.contains(type) || isLog(type)) {
+            return true;
+        }
+        switch (type) {
+            case MELON, PUMPKIN, SUGAR_CANE, CACTUS -> {
+                return true;
+            }
+            default -> {
+                return false;
+            }
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        if (isQuestPlaceBlock(event.getBlock().getType())) {
+            placed.put(key(event.getBlock()), Boolean.TRUE);
+        }
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         if (getQuest(player.getUniqueId()) == null) {
             return;
+        }
+        if (placed.remove(key(event.getBlock())) != null) {
+            return; // player-placed: never counts (shop-bought, silk-touch, etc.)
         }
         Material type = event.getBlock().getType();
         if (isPlainStone(type)) {

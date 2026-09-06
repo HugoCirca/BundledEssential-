@@ -1,13 +1,56 @@
 package com.bundleessential.util;
 
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class HelpManager implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (sender instanceof Player player) {
+            ItemStack book = buildBook();
+            if (player.getInventory().firstEmpty() == -1) {
+                player.getWorld().dropItemNaturally(player.getLocation(), book);
+                player.sendMessage("§eInventory full — help book dropped at your feet!");
+            } else {
+                player.getInventory().addItem(book);
+                player.sendMessage("§aOpened the help book in your inventory!");
+            }
+        } else {
+            sendChat(sender);
+        }
+        return true;
+    }
+
+    private ItemStack buildBook() {
+        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+        BookMeta meta = (BookMeta) book.getItemMeta();
+        meta.setTitle("§6BundledEssential Guide");
+        meta.setAuthor("Server");
+        List<String> pages = new ArrayList<>();
+        pages.add("§6§lBundledEssential\n§7Command guide\n\n§fRun §e/bundledhelp §fanytime to get this book again.\n\n§7Pages: TPA, Home, Trade, Economy, Daily, Other");
+        pages.add("§e§lTPA\n§7/tpa <player>\n§f- request teleport\n§7/tpahere <player>\n§f- summon a player\n§7/tpaccept\n§f- accept request\n\n§7Requests expire in 30s.");
+        pages.add("§e§lHome\n§7/sethome\n§f- set home\n§7/home\n§f- go home\n§7/removehome\n§f- delete home\n\n§e§lBack\n§7/back\n§f- last death spot");
+        pages.add("§e§lWaypoints\n§7/waypoint\n§f- open GUI\n§7/waypoint new <name>\n§f- save spot\n§7/waypoint delete <name>\n§f- remove it\n§7/waypoint <name>\n§f- teleport");
+        pages.add("§e§lTrade\n§7/trade <player>\n§f- send request\n§7/tradeaccept\n§f- open trade GUI\n§7/tradecancel\n§f- cancel trade\n\n§7Both sides accept in the GUI to swap items.");
+        pages.add("§e§lEconomy\n§7/shop\n§f- buy items\n§7/sell\n§f- sell held item\n§7/sellgui\n§f- sell GUI\n§7/balance [player]\n§f- check money");
+        pages.add("§e§lEconomy\n§7/pay <p> <amt>\n§f- pay (5% tax)\n§7/bounty <p> [amt]\n§f- set/check bounty\n§7/paytax\n§f- clear taxes\n§7/repair [full]\n§f- fix held item");
+        pages.add("§e§lDaily & Login\n§7/daily\n§f- random quest, claim $40-120\n§7/login\n§f- streak reward, grows daily\n\n§7/level [player]\n§f- XP level\n§7/playtime\n§f- online time + top");
+        pages.add("§e§lOther\n§7/bundledhelp\n§f- this book\n§7/bundledupdate\n§f- check updates\n§7/bundleversion\n§f- plugin version");
+        meta.setPages(pages);
+        book.setItemMeta(meta);
+        return book;
+    }
+
+    private void sendChat(CommandSender sender) {
         sender.sendMessage("§6§l=== BundledEssential Commands ===");
         sender.sendMessage("");
         sender.sendMessage("§e§lTPA");
@@ -50,6 +93,5 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("  §7/bundledupdate §f- Check for updates");
         sender.sendMessage("");
         sender.sendMessage("§6§l================================");
-        return true;
     }
 }
