@@ -7,11 +7,16 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.block.data.type.Cocoa;
+import org.bukkit.boss.BarColor;
+import org.bukkit.boss.BarStyle;
+import org.bukkit.boss.BossBar;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -38,8 +43,8 @@ import java.util.UUID;
 
 /**
  * Jobs system: pick one job at a time with /jobs join, get paid per action.
- * Player-placed ores/logs never pay (no place-and-break farming).
- * Stone/cobble pay nothing (no cobble-generator AFK farms).
+ * Player-placed ores/logs/stone never pay (no place-and-break farming).
+ * Plain stone pays through a boss-bar meter with random or custom thresholds.
  */
 public class JobsManager implements Listener, CommandExecutor {
 
@@ -47,11 +52,14 @@ public class JobsManager implements Listener, CommandExecutor {
     private static final int PLACED_CAP = 20000;
     private static final long SAVE_INTERVAL_TICKS = 6000L;
     private static final double WOODCUTTER_PAY = 0.50;
-    // Stone meter: every STONE_MIN-MAX stone mined hits a payout of $STONE_PAY_MIN-MAX
+    // Stone meter: every STONE_MIN-MAX stone mined hits a payout of target x STONE_PAY_EACH
     private static final int STONE_MIN = 64;
     private static final int STONE_MAX = 128;
-    private static final double STONE_PAY_MIN = 4.00;
-    private static final double STONE_PAY_MAX = 10.00;
+    private static final double STONE_PAY_EACH = 0.08;
+    private static final int THRESHOLD_MIN = 16;
+    private static final int THRESHOLD_MAX = 1024;
+    private static final long BAR_IDLE_TICKS = 200L; // hide boss bar after 10s idle
+    private static final List<String> STONE_TYPES = Arrays.asList("STONE", "COBBLESTONE", "DEEPSLATE", "COBBLED_DEEPSLATE");
 
     private final JavaPlugin plugin;
     private final java.util.Random random = new java.util.Random();
@@ -72,6 +80,8 @@ public class JobsManager implements Listener, CommandExecutor {
     private final Map<Material, Double> farmerPay = new HashMap<>();
     private final Map<Material, Double> fisherPay = new HashMap<>();
     private final Map<String, Double> hunterPay = new HashMap<>();
+    private final Map<UUID, BossBar> stoneBars = new HashMap<>();
+    private final Map<UUID, Long> lastStoneTime = new HashMap<>();
 
     public JobsManager(JavaPlugin plugin, BalanceManager balanceManager) {
         this.plugin = plugin;
@@ -81,6 +91,7 @@ public class JobsManager implements Listener, CommandExecutor {
         initTables();
         loadAll();
         startSaveTask();
+        startBarTask();
     }
 
     // ---------- data ----------
@@ -113,6 +124,10 @@ public class JobsManager implements Listener, CommandExecutor {
         JsonObject earned = entry(player.getUniqueId()).getAsJsonObject("earned");
         double total = earned.has(job) ? earned.get(job).getAsDouble() : 0.0;
         earned.addProperty(job, Math.round((total + amount) * 100.0) / 100.0);
+        try {
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR,
+                    new TextComponent("§a+$" + Money.format(amount) + " §7(" + job + ")"));
+        } catch (Exception ignored) {}
     }
 
     private static String key(Block block) {
@@ -133,20 +148,85 @@ public class JobsManager implements Listener, CommandExecutor {
         return STONE_MIN + random.nextInt(STONE_MAX - STONE_MIN + 1);
     }
 
-    private void stoneProgress(Player player) {
-        JsonObject e = entry(player.getUniqueId());
-        int count = (e.has("stoneCount") ? e.get("stoneCount").getAsInt() : 0) + 1;
-        int target = e.has("stoneTarget") ? e.get("stoneTarget").getAsInt() : 0;
-        if (target <= 0) target = randomStoneTarget();
-        if (count >= target) {
-            double payout = Math.round((STONE_PAY_MIN + random.nextDouble() * (STONE_PAY_MAX - STONE_PAY_MIN)) * 100.0) / 100.0;
-            pay(player, "miner", payout);
-            player.sendMessage("§6§lLUCKY BREAK! §e+$" + Money.format(payout) + " §7for mining " + target + " stone.");
-            count = 0;
-            target = randomStoneTarget();
+    private JsonObject stoneObj(UUID uuid) {
+        JsonObject e = entry(uuid);
+        if (!e.has("stone") || !e.get("stone").isJsonObject()) {
+            e.add("stone", new JsonObject());
         }
-        e.addProperty("stoneCount", count);
-        e.addProperty("stoneTarget", target);
+        return e.getAsJsonObject("stone");
+    }
+
+    private JsonObject stoneEntry(UUID uuid, String type) {
+        JsonObject all = stoneObj(uuid);
+        if (!all.has(type) || !all.get(type).isJsonObject()) {
+            JsonObject s = new JsonObject();
+            s.addProperty("count", 0);
+            s.addProperty("target", randomStoneTarget());
+            s.addProperty("custom", false);
+            all.add(type, s);
+        }
+        return all.getAsJsonObject(type);
+    }
+
+    private void stoneProgress(Player player, Material type) {
+        String key = type.name();
+        JsonObject s = stoneEntry(player.getUniqueId(), key);
+        int count = s.get("count").getAsInt() + 1;
+        int target = Math.max(1, s.get("target").getAsInt());
+        boolean custom = s.get("custom").getAsBoolean();
+        if (count >= target) {
+            double payout = Math.round(target * STONE_PAY_EACH * 100.0) / 100.0;
+            pay(player, "miner", payout);
+            player.sendMessage("§6§lLUCKY BREAK! §e+$" + Money.format(payout) + " §7for mining " + target + " " + formatStone(key) + ".");
+            count = 0;
+            if (!custom) target = randomStoneTarget();
+        }
+        s.addProperty("count", count);
+        s.addProperty("target", target);
+        lastStoneTime.put(player.getUniqueId(), System.currentTimeMillis());
+        updateBossBar(player, key, count, target, custom);
+    }
+
+    private static String formatStone(String key) {
+        String n = key.toLowerCase().replace("_", " ");
+        return Character.toUpperCase(n.charAt(0)) + n.substring(1);
+    }
+
+    private void updateBossBar(Player player, String type, int count, int target, boolean custom) {
+        BossBar bar = stoneBars.get(player.getUniqueId());
+        if (bar == null) {
+            bar = Bukkit.createBossBar("", BarColor.YELLOW, BarStyle.SEGMENTED_10);
+            bar.addPlayer(player);
+            stoneBars.put(player.getUniqueId(), bar);
+        }
+        bar.setTitle("§6" + formatStone(type) + ": §e" + count + "§7/§e" + target + (custom ? " §7(custom)" : ""));
+        bar.setProgress(Math.max(0.0, Math.min(1.0, (double) count / Math.max(1, target))));
+        if (!bar.isVisible()) bar.setVisible(true);
+    }
+
+    private void hideBar(UUID uuid) {
+        BossBar bar = stoneBars.remove(uuid);
+        if (bar != null) bar.removeAll();
+        lastStoneTime.remove(uuid);
+    }
+
+    private void startBarTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                long now = System.currentTimeMillis();
+                for (UUID uuid : new java.util.ArrayList<>(lastStoneTime.keySet())) {
+                    if (now - lastStoneTime.getOrDefault(uuid, 0L) > BAR_IDLE_TICKS * 50L) {
+                        hideBar(uuid);
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, BAR_IDLE_TICKS, BAR_IDLE_TICKS);
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        hideBar(event.getPlayer().getUniqueId());
     }
 
     // ---------- commands (/jobs list|join|leave|info) ----------
@@ -171,6 +251,7 @@ public class JobsManager implements Listener, CommandExecutor {
                 }
             }
             case "leave" -> leaveJob(player);
+            case "threshold" -> handleThreshold(player, args);
             case "info" -> {
                 if (args.length >= 2) {
                     Player target = Bukkit.getPlayer(args[1]);
@@ -180,9 +261,75 @@ public class JobsManager implements Listener, CommandExecutor {
                     sendInfo(player, player);
                 }
             }
-            default -> player.sendMessage("§cUsage: /jobs <list|join|leave|info>");
+            default -> player.sendMessage("§cUsage: /jobs <list|join|leave|info|threshold>");
         }
         return true;
+    }
+
+    private void handleThreshold(Player player, String[] args) {
+        if (args.length >= 2 && args[1].equalsIgnoreCase("auto")) {
+            if (args.length >= 3) {
+                String key = normalizeStone(args[2]);
+                if (key == null) {
+                    player.sendMessage("§cPick: stone, cobblestone, deepslate, cobbled_deepslate.");
+                    return;
+                }
+                JsonObject s = stoneEntry(player.getUniqueId(), key);
+                s.addProperty("custom", false);
+                s.addProperty("target", randomStoneTarget());
+                saveAll();
+                player.sendMessage("§a" + formatStone(key) + " meter back to random targets.");
+            } else {
+                for (String key : STONE_TYPES) {
+                    JsonObject s = stoneEntry(player.getUniqueId(), key);
+                    s.addProperty("custom", false);
+                    s.addProperty("target", randomStoneTarget());
+                }
+                saveAll();
+                player.sendMessage("§aAll stone meters back to random targets.");
+            }
+            return;
+        }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("select")) {
+            if (args.length < 4) {
+                player.sendMessage("§cUsage: /jobs threshold select <stone|cobblestone|deepslate|cobbled_deepslate> <number>");
+                return;
+            }
+            String key = normalizeStone(args[2]);
+            if (key == null) {
+                player.sendMessage("§cPick: stone, cobblestone, deepslate, cobbled_deepslate.");
+                return;
+            }
+            int num;
+            try {
+                num = Integer.parseInt(args[3]);
+            } catch (NumberFormatException e) {
+                player.sendMessage("§cNumber must be " + THRESHOLD_MIN + "-" + THRESHOLD_MAX + ".");
+                return;
+            }
+            num = Math.max(THRESHOLD_MIN, Math.min(THRESHOLD_MAX, num));
+            JsonObject s = stoneEntry(player.getUniqueId(), key);
+            s.addProperty("target", num);
+            s.addProperty("custom", true);
+            saveAll();
+            double est = Math.round(num * STONE_PAY_EACH * 100.0) / 100.0;
+            player.sendMessage("§a" + formatStone(key) + " goal set to §e" + num + " §a(pays ~$" + Money.format(est) + " each time).");
+            return;
+        }
+        player.sendMessage("§6§lStone thresholds §7(boss bar fills as you mine)");
+        for (String key : STONE_TYPES) {
+            JsonObject s = stoneEntry(player.getUniqueId(), key);
+            player.sendMessage("§e" + formatStone(key) + "§7: " + s.get("count").getAsInt() + "/" + s.get("target").getAsInt()
+                    + (s.get("custom").getAsBoolean() ? " §7(custom)" : " §7(random)"));
+        }
+        player.sendMessage("§7/jobs threshold select <block> <number> §f- custom goal, bigger = bigger pay");
+        player.sendMessage("§7/jobs threshold auto [block] §f- back to random goals");
+    }
+
+    private static String normalizeStone(String in) {
+        String n = in.toUpperCase().replace(" ", "").replace("-", "_");
+        if (n.equals("COBBLE")) n = "COBBLESTONE";
+        return STONE_TYPES.contains(n) ? n : null;
     }
 
     private void sendList(Player player) {
@@ -192,6 +339,7 @@ public class JobsManager implements Listener, CommandExecutor {
         player.sendMessage("§eFarmer §7- ripe crops (wheat $1, melon/pumpkin $1.50...)");
         player.sendMessage("§eFisher §7- catches (fish $1-2, treasure up to $10)");
         player.sendMessage("§eHunter §7- hostile mobs (zombie $1, enderman $3, dragon $500...)");
+        player.sendMessage("§7/jobs threshold §f- stone goals + bossbar progress");
     }
 
     private void sendInfo(Player viewer, Player target) {
@@ -213,6 +361,7 @@ public class JobsManager implements Listener, CommandExecutor {
             return;
         }
         entry(player.getUniqueId()).addProperty("job", job);
+        hideBar(player.getUniqueId());
         saveAll();
         player.sendMessage("§aYou joined the §e" + job + " §ajob! Earnings stack with other rewards.");
     }
@@ -223,6 +372,7 @@ public class JobsManager implements Listener, CommandExecutor {
             return;
         }
         entry(player.getUniqueId()).addProperty("job", "");
+        hideBar(player.getUniqueId());
         saveAll();
         player.sendMessage("§eYou left your job. Your earnings are kept.");
     }
@@ -254,7 +404,7 @@ public class JobsManager implements Listener, CommandExecutor {
             }
             if (isPlainStone(type)) {
                 if (placed.remove(k) != null) return; // player-placed: no progress
-                stoneProgress(player);
+                stoneProgress(player, type);
                 return;
             }
             Double cave = cavePay.get(type);

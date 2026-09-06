@@ -153,9 +153,12 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/jobs join <name>` | Join miner, woodcutter, farmer, fisher or hunter |
 | `/jobs leave` | Leave your job (earnings kept) |
 | `/jobs info [player]` | Check job earnings |
+| `/jobs threshold` | Show stone meter progress per block |
+| `/jobs threshold select <block> <number>` | Custom stone goal (bigger = bigger pay) |
+| `/jobs threshold auto [block]` | Back to random goals |
 
 - One job at a time, earnings stack with playtime/mob rewards, no payout spam
-- **Miner** — ores pay instantly, any natural cave block (andesite, tuff, calcite, dirt, gravel...) pays small cash, plus a stone meter: every 64-128 stone/cobble/deepslate hits a $4-10 lucky break
+- **Miner** — ores pay instantly, any natural cave block (andesite, tuff, calcite, dirt, gravel...) pays small cash, plus a stone meter with a live boss bar: every 64-128 stone/cobble/deepslate hits a $4-10 lucky break
 - **Woodcutter** — $0.50 per log, **Farmer** — ripe crops only, **Fisher** — per catch incl. treasure, **Hunter** — hostile mobs only (passives pay nothing)
 - Player-placed ores/logs/stone never pay, and plain stone pays only via the meter (no cobble-generator AFK farms)
 
