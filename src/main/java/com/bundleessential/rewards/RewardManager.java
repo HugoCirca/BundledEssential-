@@ -41,8 +41,8 @@ import java.util.UUID;
 
 /**
  * Replaces Jobs: no join, no grind meters, no jackpot spam.
- * - /daily: one random quest per calendar day, progress via normal play, claim once.
- * - /login: daily streak claim. Reward scales linearly so a year streak pays tons
+ * - /quest: repeatable task, progress via normal play, claiming rolls a new one instantly.
+ * - /daily: daily streak claim (also auto-granted on join). Reward scales linearly so a year streak pays tons
  *   but never explodes: base + (streak-1)*perDay + random, plus weekly/monthly bonus.
  */
 public class RewardManager implements Listener, CommandExecutor {
@@ -212,19 +212,10 @@ public class RewardManager implements Listener, CommandExecutor {
         if (!all.has(key) || !all.get(key).isJsonObject()) {
             return null;
         }
-        JsonObject q = all.getAsJsonObject(key);
-        // New calendar day -> old quest expired, generate fresh on demand.
-        if (!today().equals(q.has("date") ? q.get("date").getAsString() : "")) {
-            return null;
-        }
-        return q;
+        return all.getAsJsonObject(key);
     }
 
-    private JsonObject getOrCreateQuest(Player player) {
-        JsonObject q = getQuest(player.getUniqueId());
-        if (q != null) {
-            return q;
-        }
+    private JsonObject newQuest(Player player) {
         QuestType type = QuestType.values()[random.nextInt(QuestType.values().length)];
         int target = type.minTarget + random.nextInt(type.maxTarget - type.minTarget + 1);
         double mult = cfg("rewards.daily.reward-multiplier", DEF_DAILY_MULT);
@@ -238,16 +229,27 @@ public class RewardManager implements Listener, CommandExecutor {
         fresh.addProperty("target", target);
         fresh.addProperty("progress", 0);
         fresh.addProperty("reward", reward);
-        fresh.addProperty("date", today());
         fresh.addProperty("claimed", false);
         quests().add(player.getUniqueId().toString(), fresh);
+        saveAll();
         return fresh;
+    }
+
+    private JsonObject getOrCreateQuest(Player player) {
+        JsonObject q = getQuest(player.getUniqueId());
+        if (q != null) {
+            if (q.has("claimed") && q.get("claimed").getAsBoolean()) {
+                return newQuest(player); // legacy claimed quest: roll fresh
+            }
+            return q;
+        }
+        return newQuest(player);
     }
 
     private void addProgress(Player player, QuestType type, int amount) {
         JsonObject q = getQuest(player.getUniqueId());
         if (q == null) {
-            return; // lazy: quest created on /daily, no tracking until then
+            return; // lazy: quest created on /quest, no tracking until then
         }
         if (!type.name().equals(q.get("type").getAsString())) {
             return;
@@ -263,7 +265,7 @@ public class RewardManager implements Listener, CommandExecutor {
         progress = Math.min(target, progress + amount);
         q.addProperty("progress", progress);
         if (progress >= target) {
-            player.sendMessage("§6§lDAILY COMPLETE! §e" + describe(q) + " §7— claim with §e/daily claim");
+            player.sendMessage("§6§lQUEST COMPLETE! §e" + describe(q) + " §7— claim with §e/quest claim");
         }
     }
 
@@ -340,19 +342,15 @@ public class RewardManager implements Listener, CommandExecutor {
         }
     }
 
-    private void handleDaily(Player player, String[] args) {
+    private void handleQuest(Player player, String[] args) {
         boolean claimOnly = args.length >= 1 && args[0].equalsIgnoreCase("claim");
         JsonObject q = getOrCreateQuest(player);
         int progress = q.get("progress").getAsInt();
         int target = q.get("target").getAsInt();
         double reward = q.get("reward").getAsDouble();
-        boolean claimed = q.get("claimed").getAsBoolean();
+        boolean claimed = q.has("claimed") && q.get("claimed").getAsBoolean();
 
         if (claimOnly || (args.length == 0 && progress >= target && !claimed)) {
-            if (claimed) {
-                player.sendMessage("§eAlready claimed today's quest. §7New quest tomorrow.");
-                return;
-            }
             if (progress < target) {
                 player.sendMessage("§cNot done yet: §e" + describe(q) + " §7(" + progress + "/" + target + ")");
                 return;
@@ -362,17 +360,18 @@ public class RewardManager implements Listener, CommandExecutor {
                 kept = bountyManager.garnish(player, reward);
             }
             balanceManager.addBalance(player, kept);
-            q.addProperty("claimed", true);
-            saveAll();
-            player.sendMessage("§a§l[Daily] §e+$" + Money.format(kept) + " §7for: " + describe(q));
+            player.sendMessage("§a§l[Quest] §e+$" + Money.format(kept) + " §7for: " + describe(q));
+            JsonObject next = newQuest(player);
+            player.sendMessage("§6§l[Quest] §fNew quest: " + describe(next)
+                    + " §7— $" + Money.format(next.get("reward").getAsDouble()));
             return;
         }
         // status view (default)
         String state = claimed ? "§aclaimed ✓"
-                : progress >= target ? "§6done — /daily claim"
+                : progress >= target ? "§6done — /quest claim"
                 : "§e" + progress + "/" + target;
-        player.sendMessage("§6§l[Daily] §f" + describe(q) + " §7— $" + Money.format(reward));
-        player.sendMessage("§7Progress: " + state + " §7(resets daily)");
+        player.sendMessage("§6§l[Quest] §f" + describe(q) + " §7— $" + Money.format(reward));
+        player.sendMessage("§7Progress: " + state + " §7(new quest the moment you claim)");
     }
 
     // ---------- commands ----------
@@ -384,10 +383,10 @@ public class RewardManager implements Listener, CommandExecutor {
             return true;
         }
         String name = command.getName().toLowerCase();
-        if (name.equals("login")) {
+        if (name.equals("daily") || name.equals("login")) {
             handleLogin(player);
         } else {
-            handleDaily(player, args);
+            handleQuest(player, args);
         }
         return true;
     }
@@ -461,7 +460,7 @@ public class RewardManager implements Listener, CommandExecutor {
         }
         // Real-life daily login: grant automatically shortly after join.
         // Delayed so the reward lands after join messages; re-checked in case
-        // /login was typed first or midnight rolled over mid-delay.
+        // /daily was typed first or midnight rolled over mid-delay.
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!player.isOnline()) {
                 return;

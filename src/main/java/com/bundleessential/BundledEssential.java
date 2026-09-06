@@ -242,8 +242,8 @@ public class BundledEssential extends JavaPlugin {
             getCommand("level").setExecutor(levelManager);
         }
         if (rewardManager != null) {
+            getCommand("quest").setExecutor(rewardManager);
             getCommand("daily").setExecutor(rewardManager);
-            getCommand("login").setExecutor(rewardManager);
         }
         if (playtimeManager != null) {
             getCommand("playtime").setExecutor(playtimeManager);

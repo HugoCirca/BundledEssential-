@@ -77,12 +77,13 @@ commands:
     description: Check your server level and XP progress
     usage: /level [player]
   daily:
-    description: Check and claim your daily quest
-    usage: /daily [claim]
-  login:
     description: Claim your daily login streak reward
-    usage: /login
-    aliases: [claim, streak, dailylogin]
+    usage: /daily
+    aliases: [login, claim, streak, dailylogin]
+  quest:
+    description: Check and claim repeatable quests
+    usage: /quest [claim]
+    aliases: [quests]
   playtime:
     description: Check playtime or view the leaderboard
     usage: /playtime [leaderboard|<player>]

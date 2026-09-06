@@ -17,7 +17,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
 | **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
 | **Leveling** | `/level` |
-| **Daily & Login** | `/daily`, `/login` |
+| **Quests & Daily** | `/quest`, `/daily` |
 | **Playtime** | `/playtime` |
 | **Dynamic Light** | _(automatic — hold a light)_ |
 | **Help** | `/bundledhelp` |
@@ -146,15 +146,15 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/playtime <player>` | Check another player's time (works offline) |
 | `/playtime leaderboard` | Top 10 players by playtime |
 
-### Daily & Login
+### Quests & Daily
 
 | Command | Description |
 |---------|-------------|
-| `/daily` | Check today's random quest progress |
-| `/daily claim` | Claim today's quest reward |
-| `/login` | Claim daily streak reward (auto-granted on join; aliases `/claim`, `/streak`, `/dailylogin`) |
+| `/quest` | Check current quest progress |
+| `/quest claim` | Claim a finished quest — a new one starts instantly, no waiting |
+| `/daily` | Claim daily streak reward, auto-granted on join (aliases `/login`, `/claim`, `/streak`) |
 
-- **Daily quest** — one random quest per calendar day: mine stone/ores, chop logs, harvest ripe crops, hunt hostiles, catch fish (real fish only — no junk). Rewards $25-90 (ores and hunts pay most). Resets at midnight server time
+- **Quests** — repeatable tasks: mine stone/ores, chop logs, harvest ripe crops, hunt hostiles, catch fish (real fish only — no junk). Rewards $25-90 (ores and hunts pay most). Claiming instantly rolls your next quest
 - **Login streak** — claim every day to grow the streak: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850)
 - Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
 - Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)

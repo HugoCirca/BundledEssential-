@@ -13,7 +13,7 @@ leveling:
   playtime-bonus-per-level: 0.10
 
 # Daily quests + login streak (replaces jobs)
-# /login day N pays: base + (N-1)*per-day + random 0..random-max
+# /daily day N pays: base + (N-1)*per-day + random 0..random-max
 # + weekly-bonus every 7th day, + monthly-bonus every 30th day.
 # Example defaults: day1 ~$20-30, day30 ~$175, day365 ~$1850.
 rewards:
