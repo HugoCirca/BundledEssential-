@@ -117,6 +117,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - **End** — End Stone, Purpur, Chorus, all Shulker Boxes, Dragon Egg, Elytra
 - **New 1.21-26.2** — Copper/Tuff variants, Pale Garden, Resin, Happy Ghast gear, Sulfur & Cinnabar sets, new discs
 - **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page. No anvil? Use `/shop search <name>` instead (works everywhere, incl. Bedrock)
+- **Bulk buying** — Click any stackable item, then the red/green panes to pick 1-64 (shift-click = 10 at a time), confirm to buy the stack. Unstackables (tools/weapons) still buy instantly
 
 #### Dynamic Pricing
 - Prices drift ±5-10% every 5 minutes
@@ -151,9 +152,9 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 |---------|-------------|
 | `/daily` | Check today's random quest progress |
 | `/daily claim` | Claim today's quest reward |
-| `/login` | Claim daily streak reward (aliases `/claim`, `/streak`, `/dailylogin`) |
+| `/login` | Claim daily streak reward (auto-granted on join; aliases `/claim`, `/streak`, `/dailylogin`) |
 
-- **Daily quest** — one random quest per calendar day: mine stone/ores, chop logs, harvest ripe crops, hunt hostiles, catch fish. Rewards $40-120 (ores and hunts pay most). Resets at midnight server time
+- **Daily quest** — one random quest per calendar day: mine stone/ores, chop logs, harvest ripe crops, hunt hostiles, catch fish (real fish only — no junk). Rewards $25-90 (ores and hunts pay most). Resets at midnight server time
 - **Login streak** — claim every day to grow the streak: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850)
 - Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
 - Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)

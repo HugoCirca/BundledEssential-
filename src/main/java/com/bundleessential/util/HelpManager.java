@@ -43,7 +43,7 @@ public class HelpManager implements CommandExecutor {
         pages.add("§e§lTrade\n§7/trade <player>\n§f- send request\n§7/tradeaccept\n§f- open trade GUI\n§7/tradecancel\n§f- cancel trade\n\n§7Both sides accept in the GUI to swap items.");
         pages.add("§e§lEconomy\n§7/shop\n§f- buy items\n§7/shop search <name>\n§f- find items\n§7/sell\n§f- sell held item\n§7/sellgui\n§f- sell GUI\n§7/balance\n§f- check money");
         pages.add("§e§lEconomy\n§7/pay <p> <amt>\n§f- pay (5% tax)\n§7/bounty <p> [amt]\n§f- set/check bounty\n§7/paytax\n§f- clear taxes\n§7/repair [full]\n§f- fix held item");
-        pages.add("§e§lDaily & Login\n§7/daily\n§f- random quest, claim $40-120\n§7/login\n§f- streak reward, grows daily\n\n§7/level [player]\n§f- XP level\n§7/playtime\n§f- online time + top");
+        pages.add("§e§lDaily & Login\n§7/daily\n§f- quest, claim $25-90\n§7/login\n§f- streak, auto on join\n\n§7/level [player]\n§f- XP level\n§7/playtime\n§f- online time + top");
         pages.add("§e§lOther\n§7/bundledhelp\n§f- this book\n§7/bundledupdate\n§f- check updates\n§7/bundleversion\n§f- plugin version");
         meta.setPages(pages);
         book.setItemMeta(meta);

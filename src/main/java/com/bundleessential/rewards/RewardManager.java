@@ -8,6 +8,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
@@ -23,6 +24,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -46,12 +48,12 @@ import java.util.UUID;
 public class RewardManager implements Listener, CommandExecutor {
 
     private enum QuestType {
-        MINE_STONE(48, 96, 40.0, 70.0, "Mine %d stone/cobble/deepslate"),
-        MINE_ORE(8, 16, 80.0, 120.0, "Mine %d ores"),
-        CHOP(24, 48, 40.0, 70.0, "Chop %d logs"),
-        FARM(24, 48, 40.0, 70.0, "Harvest %d ripe crops"),
-        HUNT(10, 20, 60.0, 100.0, "Kill %d hostile mobs"),
-        FISH(3, 8, 60.0, 100.0, "Catch %d fish");
+        MINE_STONE(48, 96, 30.0, 50.0, "Mine %d stone/cobble/deepslate"),
+        MINE_ORE(8, 16, 60.0, 90.0, "Mine %d ores"),
+        CHOP(24, 48, 30.0, 50.0, "Chop %d logs"),
+        FARM(24, 48, 30.0, 50.0, "Harvest %d ripe crops"),
+        HUNT(10, 20, 45.0, 75.0, "Kill %d hostile mobs"),
+        FISH(4, 8, 25.0, 40.0, "Catch %d fish");
 
         final int minTarget;
         final int maxTarget;
@@ -449,6 +451,30 @@ public class RewardManager implements Listener, CommandExecutor {
         }
     }
 
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        JsonObject e = loginEntry(player.getUniqueId());
+        String last = e.has("last") ? e.get("last").getAsString() : "";
+        if (today().equals(last)) {
+            return; // already claimed today
+        }
+        // Real-life daily login: grant automatically shortly after join.
+        // Delayed so the reward lands after join messages; re-checked in case
+        // /login was typed first or midnight rolled over mid-delay.
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            JsonObject entry = loginEntry(player.getUniqueId());
+            String cur = entry.has("last") ? entry.get("last").getAsString() : "";
+            if (today().equals(cur)) {
+                return;
+            }
+            handleLogin(player);
+        }, 60L);
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
@@ -484,10 +510,16 @@ public class RewardManager implements Listener, CommandExecutor {
         if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) {
             return;
         }
-        if (!(event.getCaught() instanceof Item)) {
+        if (!(event.getCaught() instanceof Item item)) {
             return;
         }
-        addProgress(event.getPlayer(), QuestType.FISH, 1);
+        // Junk (bowls, sticks, leather...) and treasure don't count — only real fish.
+        switch (item.getItemStack().getType()) {
+            case COD, SALMON, TROPICAL_FISH, PUFFERFISH ->
+                    addProgress(event.getPlayer(), QuestType.FISH, 1);
+            default -> {
+            }
+        }
     }
 
     @EventHandler

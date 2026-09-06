@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -36,6 +37,18 @@ public class ShopManager implements Listener {
     private static final long BUY_DEBOUNCE_MS = 750L;
     private final Map<String, Material[]> categories = new LinkedHashMap<>();
     private final Set<UUID> searchSubmitted = new HashSet<>();
+    private final Map<UUID, PendingBuy> pendingBuys = new HashMap<>();
+    private final Set<UUID> switching = new HashSet<>();
+
+    private static class PendingBuy {
+        final Material material;
+        final int amount;
+
+        PendingBuy(Material material, int amount) {
+            this.material = material;
+            this.amount = amount;
+        }
+    }
 
     private static final int ITEMS_PER_PAGE = 21;
     private static final int[] ITEM_SLOTS = {
@@ -46,6 +59,7 @@ public class ShopManager implements Listener {
     // Plain title on purpose: Paper 1.21.4+ kicks players when an anvil title
     // sent via packets contains legacy color codes.
     private static final String SEARCH_TITLE = "Search shop items";
+    private static final String BUY_TITLE = "§6§lBuy ";
 
     public ShopManager(BalanceManager balanceManager, PriceManager priceManager, SellManager sellManager) {
         this.balanceManager = balanceManager;
@@ -172,6 +186,55 @@ public class ShopManager implements Listener {
         }
 
         player.openInventory(inv);
+    }
+
+    private void openBuyGui(Player player, Material material, int amount) {
+        int max = Math.max(1, material.getMaxStackSize());
+        amount = Math.max(1, Math.min(max, amount));
+        pendingBuys.put(player.getUniqueId(), new PendingBuy(material, amount));
+        double unit = priceManager.getBuyPrice(material);
+        double total = Math.round(unit * amount * 100.0) / 100.0;
+
+        Inventory inv = Bukkit.createInventory(null, 27, BUY_TITLE + formatName(material));
+        ItemStack filler = makeItem(Material.GRAY_STAINED_GLASS_PANE, " ");
+        for (int i = 0; i < 27; i++) {
+            inv.setItem(i, filler);
+        }
+
+        inv.setItem(10, makeItem(Material.ARROW, "§cBack"));
+        inv.setItem(12, makeItem(Material.RED_STAINED_GLASS_PANE, "§c§l-1", "§7Shift-click: -10"));
+        List<String> lore = new ArrayList<>();
+        lore.add("§eAmount: §f" + amount + "§7/§f" + max);
+        lore.add("§eUnit: §a$" + Money.format(unit));
+        lore.add("§eTotal: §a$" + Money.format(total));
+        inv.setItem(13, makeItem(material, "§a" + formatName(material), lore.toArray(new String[0])));
+        inv.setItem(14, makeItem(Material.LIME_STAINED_GLASS_PANE, "§a§l+1", "§7Shift-click: +10"));
+        inv.setItem(16, makeItem(Material.EMERALD_BLOCK, "§a§lConfirm: $" + Money.format(total),
+                "§7Buy " + amount + "x " + formatName(material)));
+
+        switching.add(player.getUniqueId());
+        player.openInventory(inv);
+    }
+
+    private void confirmBuy(Player player, PendingBuy pending) {
+        // Bedrock/Geyser can fire one tap twice: ignore re-buys inside the window
+        long now = System.currentTimeMillis();
+        if (now - lastBuyTime.getOrDefault(player.getUniqueId(), 0L) < BUY_DEBOUNCE_MS) return;
+        lastBuyTime.put(player.getUniqueId(), now);
+        double total = Math.round(priceManager.getBuyPrice(pending.material) * pending.amount * 100.0) / 100.0;
+        if (balanceManager.removeBalance(player, total)) {
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(new ItemStack(pending.material, pending.amount));
+            for (ItemStack drop : leftover.values()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), drop);
+            }
+            player.sendMessage("§aBought " + pending.amount + "x " + formatName(pending.material) + " for $" + Money.format(total));
+            if (!leftover.isEmpty()) {
+                player.sendMessage("§eNo room — extras dropped at your feet.");
+            }
+        } else {
+            player.sendMessage("§cNot enough money! Need $" + Money.format(total));
+        }
+        openBuyGui(player, pending.material, pending.amount);
     }
 
     private void openSearch(Player player) {
@@ -702,6 +765,35 @@ public class ShopManager implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         String title = event.getView().getTitle();
 
+        if (title.startsWith(BUY_TITLE)) {
+            event.setCancelled(true);
+            if (event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+            PendingBuy pending = pendingBuys.get(player.getUniqueId());
+            if (pending == null) {
+                openShop(player);
+                return;
+            }
+            switch (event.getSlot()) {
+                case 10 -> {
+                    pendingBuys.remove(player.getUniqueId());
+                    ShopPage back = playerPages.get(player.getUniqueId());
+                    if (back != null) {
+                        openCategoryPage(player, back.category, back.materials, back.page);
+                    } else {
+                        openShop(player);
+                    }
+                }
+                case 12 -> openBuyGui(player, pending.material,
+                        pending.amount - (event.isShiftClick() ? 10 : 1));
+                case 14 -> openBuyGui(player, pending.material,
+                        pending.amount + (event.isShiftClick() ? 10 : 1));
+                case 16 -> confirmBuy(player, pending);
+                default -> {
+                }
+            }
+            return;
+        }
+
         boolean isMain = isMainShop(title);
         boolean isCategory = isCategoryShop(title);
 
@@ -768,19 +860,24 @@ public class ShopManager implements Listener {
             }
 
             Material material = clicked.getType();
-            double buyPrice = priceManager.getBuyPrice(material);
 
             for (int slot : ITEM_SLOTS) {
                 if (event.getSlot() == slot) {
-                    // Bedrock/Geyser can fire one tap twice: ignore re-buys inside the window
-                    long now = System.currentTimeMillis();
-                    if (now - lastBuyTime.getOrDefault(player.getUniqueId(), 0L) < BUY_DEBOUNCE_MS) return;
-                    lastBuyTime.put(player.getUniqueId(), now);
-                    if (balanceManager.removeBalance(player, buyPrice)) {
-                        player.getInventory().addItem(new ItemStack(material, 1));
-                        player.sendMessage("§aBought 1x " + formatName(material) + " for $" + Money.format(buyPrice));
+                    if (material.getMaxStackSize() <= 1) {
+                        // Unstackable (tools/weapons): keep instant buy-1
+                        double buyPrice = priceManager.getBuyPrice(material);
+                        // Bedrock/Geyser can fire one tap twice: ignore re-buys inside the window
+                        long now = System.currentTimeMillis();
+                        if (now - lastBuyTime.getOrDefault(player.getUniqueId(), 0L) < BUY_DEBOUNCE_MS) return;
+                        lastBuyTime.put(player.getUniqueId(), now);
+                        if (balanceManager.removeBalance(player, buyPrice)) {
+                            player.getInventory().addItem(new ItemStack(material, 1));
+                            player.sendMessage("§aBought 1x " + formatName(material) + " for $" + Money.format(buyPrice));
+                        } else {
+                            player.sendMessage("§cNot enough money! Need $" + Money.format(buyPrice));
+                        }
                     } else {
-                        player.sendMessage("§cNot enough money! Need $" + Money.format(buyPrice));
+                        openBuyGui(player, material, 1);
                     }
                     return;
                 }
@@ -789,9 +886,25 @@ public class ShopManager implements Listener {
     }
 
     @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        // Programmatic GUI switches (picker refresh) also fire close: skip those.
+        if (switching.remove(player.getUniqueId())) {
+            return;
+        }
+        if (pendingBuys.remove(player.getUniqueId()) != null) {
+            // Closed the quantity picker with ESC -> back to the category page
+            ShopPage back = playerPages.get(player.getUniqueId());
+            if (back == null) return;
+            Bukkit.getScheduler().runTask(getPlugin(), () ->
+                    openCategoryPage(player, back.category, back.materials, back.page));
+        }
+    }
+
+    @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         String title = event.getView().getTitle();
-        if (isMainShop(title) || isCategoryShop(title)) {
+        if (isMainShop(title) || isCategoryShop(title) || title.startsWith(BUY_TITLE)) {
             event.setCancelled(true);
         }
     }
