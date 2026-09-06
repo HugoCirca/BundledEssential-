@@ -10,7 +10,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 | Module | Commands |
 |--------|----------|
-| **TPA** | `/tpa`, `/tpaccept`, `/tpahere` |
+| **TPA** | `/tpa`, `/tpaccept`, `/tpahere`, `/tpaautoaccept` |
 | **Home** | `/sethome`, `/removehome`, `/home` |
 | **Back** | `/back` |
 | **Waypoints** | `/waypoint` |
@@ -38,6 +38,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/tpa <player>` | Send a teleport request to a player |
 | `/tpahere <player>` | Request a player to teleport to you |
 | `/tpaccept` | Accept a pending teleport request |
+| `/tpaautoaccept [on|off]` | Toggle instant auto-accept (saved, survives restarts) |
 
 - Requests expire after **30 seconds**
 - You cannot TPA to yourself
@@ -100,7 +101,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 #### Money Sources
 - **Kill mobs** — $0.01 to $10.00 (random)
-- **Playtime** — $2.00 to $5.00 every 5 minutes, scaled up by your level (+10% per level by default, tunable in `config.yml` under `economy:`)
+- **Playtime** — ~$10.00 every 5 minutes ($8-12 base, scaled up by your level, tunable in `config.yml` under `economy:`)
 - **Bounty claims** — Kill a player with a bounty to claim it (20% tax, placers can't claim their own)
 
 #### Shop Categories
@@ -118,6 +119,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - **Nether** — Full Nether set incl. Blackstone, Basalt, Nylium, Netherite
 - **End** — End Stone, Purpur, Chorus, all Shulker Boxes, Dragon Egg, Elytra
 - **New 1.21-26.2** — Copper/Tuff variants, Pale Garden, Resin, Happy Ghast gear, Sulfur & Cinnabar sets, new discs
+- **Misc** — Auto-filled with every item not in another category, so nothing is ever missing
 - **Custom** — Auto-Sell Chest + Zombie Spawner (barrier icon, bottom-right), see below
 - **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page. No anvil? Use `/shop search <name>` instead (works everywhere, incl. Bedrock)
 - **Bulk buying** — Click any stackable item, then the red/green panes to pick 1-64 (shift-click = 10 at a time), confirm to buy the stack. Unstackables (tools/weapons) still buy instantly
@@ -175,10 +177,10 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/quest` | Check current quest progress |
 | `/quest claim` | Claim a finished quest — a new one starts instantly, no waiting |
 | `/quest skip` | Ditch the current quest for a fresh roll (no reward, no penalty) |
-| `/daily` | Claim daily streak reward, auto-granted on join (aliases `/login`, `/claim`, `/streak`) |
+| `/daily` | Claim daily streak reward (aliases `/login`, `/claim`, `/streak`) |
 
 - **Quests** — 15 repeatable tasks: mine stone/ores, harvest crops, hunt hostiles, catch real fish, breed/tame/shear animals, enchant, smelt, brew, eat, sleep, visit dimensions, gain XP levels. Rewards $20-90 (ores, hunts and enchants pay most). Claiming instantly rolls your next quest
-- **Login streak** — claim every day to grow the streak: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850)
+- **Login streak** — `/daily` claims it manually each day: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850). Missing one day freezes the streak (no gain, no reset); missing more resets it
 - Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
 - Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)
 

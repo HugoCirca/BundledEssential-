@@ -82,9 +82,10 @@ public class SpawnerManager implements Listener {
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("§a§lZombie Spawner");
         List<String> lore = new ArrayList<>();
-        lore.add("§7Place for a 1x zombie spawner");
-        lore.add("§7Right-click one placed to 2x, 3x...");
-        lore.add("§7Max 35x rate");
+        lore.add("§7Place for a 1x spawner anywhere");
+        lore.add("§7Right-click a wild zombie");
+        lore.add("§7spawner to boost it to 35x");
+        lore.add("§7Whole held stack feeds at once");
         meta.setLore(lore);
         meta.getPersistentDataContainer().set(tagKey(plugin), PersistentDataType.BYTE, (byte) 1);
         item.setItemMeta(meta);
@@ -317,29 +318,54 @@ public class SpawnerManager implements Listener {
         if (clicked == null) {
             return;
         }
-        String key = locKey(clicked);
-        JsonObject e = spawners().has(key) ? spawners().getAsJsonObject(key) : null;
-        if (e == null) {
-            return;
+        if (!(clicked.getState() instanceof CreatureSpawner spawner)) {
+            return; // not a spawner: let vanilla place/interact normally
         }
         Player player = event.getPlayer();
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (!isSpawnerItem(plugin, hand)) {
             return;
         }
+        if (spawner.getSpawnedType() != EntityType.ZOMBIE) {
+            event.setCancelled(true);
+            player.sendMessage("§cOnly §azombie §cspawners can be boosted!");
+            return;
+        }
         // Don't let vanilla place the held spawner against this one.
         event.setCancelled(true);
+        String key = locKey(clicked);
+        JsonObject e = spawners().has(key) ? spawners().getAsJsonObject(key) : null;
+        if (e == null) {
+            // Wild spawner: every held spawner item is +1x on top of its natural 1x.
+            int room = maxMult() - 1;
+            int use = Math.min(hand.getAmount(), Math.max(0, room));
+            if (use <= 0) {
+                player.sendMessage("§eMax rate is §l" + maxMult() + "x§e — spawners can't go higher.");
+                return;
+            }
+            int adopted = 1 + use;
+            JsonObject fresh = new JsonObject();
+            fresh.addProperty("mult", adopted);
+            spawners().add(key, fresh);
+            ensureHologram(key, clicked, adopted);
+            hand.setAmount(hand.getAmount() - use);
+            saveAll();
+            player.sendMessage("§aBoosted wild spawner to §lZombie " + adopted + "x§a! (used " + use + ")");
+            return;
+        }
         int mult = multOf(e);
-        if (mult >= maxMult()) {
+        int room = maxMult() - mult;
+        if (room <= 0) {
             player.sendMessage("§eThis spawner is already at max §l" + maxMult() + "x§e!");
             return;
         }
-        hand.setAmount(hand.getAmount() - 1);
-        int next = mult + 1;
+        int use = Math.min(hand.getAmount(), room);
+        hand.setAmount(hand.getAmount() - use);
+        int next = mult + use;
         e.addProperty("mult", next);
         ensureHologram(key, clicked, next);
         saveAll();
-        player.sendMessage("§a§lZombie " + next + "x§a! Rate increased.");
+        player.sendMessage("§a§lZombie " + next + "x§a! (used " + use + " spawner(s))");
     }
 
     @EventHandler(ignoreCancelled = true)

@@ -19,7 +19,9 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -72,6 +74,13 @@ public class ShopManager implements Listener {
     // sent via packets contains legacy color codes.
     private static final String SEARCH_TITLE = "Search shop items";
     private static final String BUY_TITLE = "§6§lBuy ";
+    // Never sold: admin/creative-only (command execution, world editing).
+    // Everything else — even unobtainable blocks — is listed.
+    private static final String[] SHOP_EXCLUDED = {
+        "COMMAND_BLOCK", "CHAIN_COMMAND_BLOCK", "REPEATING_COMMAND_BLOCK",
+        "COMMAND_BLOCK_MINECART", "STRUCTURE_BLOCK", "STRUCTURE_VOID", "JIGSAW",
+        "BARRIER", "DEBUG_STICK", "KNOWLEDGE_BOOK", "LIGHT", "BEDROCK"
+    };
 
     public ShopManager(BalanceManager balanceManager, PriceManager priceManager, SellManager sellManager) {
         this.balanceManager = balanceManager;
@@ -91,6 +100,41 @@ public class ShopManager implements Listener {
         categories.put("Nether", netherItems());
         categories.put("End", endItems());
         categories.put("New 1.21-26.2", latestItems());
+        categories.put("Misc", miscItems());
+    }
+
+    /**
+     * Catch-all: every item not in another category, so nothing is ever missing
+     * from the shop (or /shop search) on any server version.
+     */
+    private Material[] miscItems() {
+        Set<Material> listed = new HashSet<>();
+        for (Material[] arr : categories.values()) {
+            listed.addAll(Arrays.asList(arr));
+        }
+        Set<Material> excluded = new HashSet<>();
+        for (String n : SHOP_EXCLUDED) {
+            try {
+                Material m = Material.matchMaterial(n);
+                if (m != null) {
+                    excluded.add(m);
+                }
+            } catch (Exception ignored) {}
+        }
+        List<Material> rest = new ArrayList<>();
+        for (Material m : Material.values()) {
+            try {
+                if (m == null || m == Material.AIR || !m.isItem()) {
+                    continue;
+                }
+                if (listed.contains(m) || excluded.contains(m)) {
+                    continue;
+                }
+                rest.add(m);
+            } catch (Exception ignored) {}
+        }
+        rest.sort(Comparator.comparing(Enum::name));
+        return rest.toArray(new Material[0]);
     }
 
     /**
@@ -141,6 +185,7 @@ public class ShopManager implements Listener {
         shop.setItem(22, makeItem(Material.REDSTONE, "§e§lRedstone", "§7Pistons, rails, crafter", "§7Click to browse"));
         shop.setItem(23, makeItem(Material.NETHERRACK, "§e§lNether", "§7Click to browse"));
         shop.setItem(24, makeItem(Material.END_STONE, "§e§lEnd", "§7Click to browse"));
+        shop.setItem(25, makeItem(Material.CHEST, "§e§lMisc & More", "§7Everything else", "§7Click to browse"));
 
         // NEW: 1.21 -> 26.2 items (Sulfur, Cinnabar, Pale, Resin, Copper, Happy Ghast...)
         shop.setItem(31, makeItem(icon("SULFUR", Material.NETHERITE_INGOT), "§d§lNew 1.21-26.2", "§7Copper, Tuff, Pale, Resin", "§7Sulfur, Cinnabar, Ghast...", "§7Click to browse"));
@@ -397,7 +442,7 @@ public class ShopManager implements Listener {
             "CALCITE","DRIPSTONE_BLOCK","POINTED_DRIPSTONE",
             "SANDSTONE","CHISELED_SANDSTONE","CUT_SANDSTONE","SMOOTH_SANDSTONE",
             "RED_SANDSTONE","CHISELED_RED_SANDSTONE","CUT_RED_SANDSTONE","SMOOTH_RED_SANDSTONE",
-            "SAND","RED_SAND","GRAVEL","CLAY",
+            "SAND","RED_SAND","GRAVEL","CLAY","SPONGE","WET_SPONGE",
             "DIRT","COARSE_DIRT","ROOTED_DIRT","PODZOL","MYCELIUM","GRASS_BLOCK","MUD","PACKED_MUD",
             "STONE_BRICKS","MOSSY_STONE_BRICKS","CRACKED_STONE_BRICKS","CHISELED_STONE_BRICKS",
             "STONE_STAIRS","STONE_SLAB","COBBLESTONE_STAIRS","COBBLESTONE_SLAB","COBBLESTONE_WALL",
@@ -804,6 +849,10 @@ public class ShopManager implements Listener {
         openCategoryPage(player, "New 1.21-26.2", latestItems(), 0);
     }
 
+    private void openMiscShop(Player player) {
+        openCategoryPage(player, "Misc", categories.get("Misc"), 0);
+    }
+
     private void openCustomShop(Player player) {
         playerPages.put(player.getUniqueId(), new ShopPage("Custom", new Material[0], 0));
         Inventory inv = Bukkit.createInventory(null, 54, "§6§lCustom");
@@ -917,6 +966,7 @@ public class ShopManager implements Listener {
                 case 22 -> openRedstoneShop(player);
                 case 23 -> openNetherShop(player);
                 case 24 -> openEndShop(player);
+                case 25 -> openMiscShop(player);
                 case 31 -> openLatestShop(player);
                 case 40 -> {
                     if (sellManager != null) sellManager.openSellGui(player);

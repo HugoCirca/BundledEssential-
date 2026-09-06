@@ -35,7 +35,6 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLevelChangeEvent;
 import org.bukkit.event.player.PlayerShearEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -55,7 +54,7 @@ import java.util.UUID;
 /**
  * Replaces Jobs: no join, no grind meters, no jackpot spam.
  * - /quest: repeatable task, progress via normal play, claiming rolls a new one instantly.
- * - /daily: daily streak claim (also auto-granted on join). Reward scales linearly so a year streak pays tons
+ * - /daily: manual daily streak claim (one missed day freezes it). Reward scales linearly so a year streak pays tons
  *   but never explodes: base + (streak-1)*perDay + random, plus weekly/monthly bonus.
  */
 public class RewardManager implements Listener, CommandExecutor {
@@ -71,7 +70,7 @@ public class RewardManager implements Listener, CommandExecutor {
 
     private enum QuestType {
         MINE_STONE(48, 96, 30.0, 50.0, "Mine %d stone/cobble/deepslate"),
-        MINE_ORE(8, 16, 60.0, 90.0, "Mine %d ores"),
+        MINE_ORE(8, 16, 35.0, 55.0, "Mine %d ores"),
         CHOP(24, 48, 30.0, 50.0, "Chop %d logs"),
         FARM(24, 48, 30.0, 50.0, "Harvest %d ripe crops"),
         HUNT(10, 20, 45.0, 75.0, "Kill %d hostile mobs"),
@@ -346,12 +345,23 @@ public class RewardManager implements Listener, CommandExecutor {
         if (now.equals(last)) {
             int streak = e.get("streak").getAsInt();
             double lastAmount = e.has("lastAmount") ? e.get("lastAmount").getAsDouble() : 0.0;
-            player.sendMessage("§eAlready claimed today! §7(Day " + streak + " auto-claimed on join: +$"
+            player.sendMessage("§eAlready claimed today! §7(Day " + streak + ": +$"
                     + Money.format(lastAmount) + ") Come back tomorrow.");
             return;
         }
         String yesterday = LocalDate.now().minusDays(1).toString();
-        int streak = yesterday.equals(last) ? e.get("streak").getAsInt() + 1 : 1;
+        String dayBefore = LocalDate.now().minusDays(2).toString();
+        int streak;
+        String frozen = "";
+        if (yesterday.equals(last)) {
+            streak = e.get("streak").getAsInt() + 1;
+        } else if (dayBefore.equals(last)) {
+            // One-day grace: streak frozen, not incremented, not reset.
+            streak = e.get("streak").getAsInt();
+            frozen = " §7(grace day used — streak frozen)";
+        } else {
+            streak = 1;
+        }
         double reward = loginReward(streak);
         double kept = reward;
         if (bountyManager != null) {
@@ -370,10 +380,10 @@ public class RewardManager implements Listener, CommandExecutor {
         } else if (streak % 7 == 0) {
             bonus = " §6§l+7-day bonus $" + Money.format(weekly) + "!";
         }
-        player.sendMessage("§a§l[Login] §eDay " + streak + " §a+$" + Money.format(kept) + bonus
-                + " §7(keep streak: claim every day)");
-        if (streak == 1 && !last.isEmpty() && !yesterday.equals(last)) {
-            player.sendMessage("§7Streak reset — you missed a day.");
+        player.sendMessage("§a§l[Login] §eDay " + streak + " §a+$" + Money.format(kept) + bonus + frozen
+                + " §7(claim /daily every day)");
+        if (streak == 1 && !last.isEmpty() && !yesterday.equals(last) && !dayBefore.equals(last)) {
+            player.sendMessage("§7Streak reset — you missed more than a day.");
         }
     }
 
@@ -491,30 +501,6 @@ public class RewardManager implements Listener, CommandExecutor {
         }
     }
 
-    @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        JsonObject e = loginEntry(player.getUniqueId());
-        String last = e.has("last") ? e.get("last").getAsString() : "";
-        if (today().equals(last)) {
-            return; // already claimed today
-        }
-        // Real-life daily login: grant automatically shortly after join.
-        // Delayed so the reward lands after join messages; re-checked in case
-        // /daily was typed first or midnight rolled over mid-delay.
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!player.isOnline()) {
-                return;
-            }
-            JsonObject entry = loginEntry(player.getUniqueId());
-            String cur = entry.has("last") ? entry.get("last").getAsString() : "";
-            if (today().equals(cur)) {
-                return;
-            }
-            handleLogin(player);
-        }, 60L);
-    }
-
     private final Set<String> countedBreaks = new HashSet<>();
 
     private static QuestType questTypeForBreak(Material type) {
@@ -628,8 +614,15 @@ public class RewardManager implements Listener, CommandExecutor {
         if (event.getEntity() instanceof Player) {
             return;
         }
-        if (HOSTILE.contains(event.getEntityType().name())) {
-            addProgress(killer, QuestType.HUNT, 1);
+        if (!HOSTILE.contains(event.getEntityType().name())) {
+            return;
+        }
+        // Team kills: killer plus everyone who hit it progress their HUNT quest.
+        for (UUID id : balanceManager.contributors(event.getEntity(), killer.getUniqueId())) {
+            Player p = Bukkit.getPlayer(id);
+            if (p != null) {
+                addProgress(p, QuestType.HUNT, 1);
+            }
         }
     }
 

@@ -161,6 +161,7 @@ public class PriceManager {
         set("SANDSTONE", 0.75); set("CHISELED_SANDSTONE", 1.25); set("CUT_SANDSTONE", 1.00); set("SMOOTH_SANDSTONE", 1.00);
         set("RED_SANDSTONE", 0.85); set("CHISELED_RED_SANDSTONE", 1.25); set("CUT_RED_SANDSTONE", 1.00); set("SMOOTH_RED_SANDSTONE", 1.00);
         set("SAND", 0.30); set("RED_SAND", 0.35); set("GRAVEL", 0.30); set("CLAY", 0.75);
+        set("SPONGE", 15.00); set("WET_SPONGE", 12.00);
         set("DIRT", 0.25); set("COARSE_DIRT", 0.30); set("ROOTED_DIRT", 0.40);
         set("PODZOL", 0.60); set("MYCELIUM", 0.75); set("GRASS_BLOCK", 0.75);
         set("MUD", 0.50); set("PACKED_MUD", 0.75);

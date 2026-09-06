@@ -38,13 +38,13 @@ public class HelpManager implements CommandExecutor {
         // Dark colors only: book pages are light parchment, white text is unreadable.
         List<String> pages = new ArrayList<>();
         pages.add("§4§lBundledEssential\n§0Command guide with what everything does.\n\n§0Run §1/bundledhelp §0anytime to get this book again.\n\n§0Covers: TPA, Home, Trade, Economy, Quests, Custom");
-        pages.add("§4§lTPA\n§1/tpa <player>\n§0- ask to teleport to them\n§1/tpahere <player>\n§0- ask them to come to you\n§1/tpaccept\n§0- say yes to a request\n\n§0Requests expire in 30s.");
+        pages.add("§4§lTPA\n§1/tpa <player>\n§0- ask to teleport to them\n§1/tpahere <player>\n§0- ask them to come to you\n§1/tpaccept\n§0- say yes to a request\n§1/tpaautoaccept\n§0- auto-say yes, toggle\n\n§0Requests expire in 30s.");
         pages.add("§4§lHome\n§1/sethome\n§0- save where you stand\n§1/home\n§0- teleport back there\n§1/removehome\n§0- delete your home\n\n§4§lBack\n§1/back\n§0- return to death spot");
         pages.add("§4§lWaypoints\n§1/waypoint\n§0- open the travel GUI\n§1/waypoint new <name>\n§0- save this spot\n§1/waypoint delete <name>\n§0- forget a spot\n§1/waypoint <name>\n§0- teleport to a spot");
         pages.add("§4§lTrade\n§1/trade <player>\n§0- offer a trade\n§1/tradeaccept\n§0- open the trade window\n§1/tradecancel\n§0- back out safely\n\n§0Both sides lock in green to swap items.");
         pages.add("§4§lEconomy\n§1/shop\n§0- browse and buy items\n§1/shop search <name>\n§0- jump straight to matches\n§1/sell\n§0- sell what you hold\n§1/sellgui\n§0- sell a whole GUI of stuff\n§1/balance [player]\n§0- yours or their money");
         pages.add("§4§lEconomy\n§1/pay <p> <amt>\n§0- send money (5% tax)\n§1/bounty <p> [amt]\n§0- put a price on heads\n§1/paytax\n§0- clear your tax debt\n§1/repair [full]\n§0- fix the held item");
-        pages.add("§4§lQuests & Daily\n§1/quest\n§0- see the current task\n§1/quest claim\n§0- collect pay, get next\n§1/quest skip\n§0- ditch it, roll another\n§1/daily\n§0- streak pay, auto on join");
+        pages.add("§4§lQuests & Daily\n§1/quest\n§0- see the current task\n§1/quest claim\n§0- collect pay, get next\n§1/quest skip\n§0- ditch it, roll another\n§1/daily\n§0- claim streak, 1-day grace");
         pages.add("§4§lCustom Items\n§1/shop §0Custom tab:\n§1Auto-Sell Chest\n§0- chest that sells itself on a timer, split pay\n§1Zombie Spawner\n§0- right-click it to raise rate to 35x\n\n§1/autosell\n§0- chest help and prices\n§1/autosell give <p>\n§0- hand out chests (ops)");
         pages.add("§4§lOther\n§1/level [player]\n§0- XP level and bonus\n§1/playtime [top|name]\n§0- times and leaderboard\n§1/bundledhelp\n§0- this book again\n§1/bundledupdate\n§0- fetch plugin updates");
         meta.setPages(pages);
@@ -59,6 +59,7 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("  §7/tpa <player> §f- Send teleport request");
         sender.sendMessage("  §7/tpahere <player> §f- Request player to teleport to you");
         sender.sendMessage("  §7/tpaccept §f- Accept teleport request");
+        sender.sendMessage("  §7/tpaautoaccept [on|off] §f- Auto-accept requests");
         sender.sendMessage("");
         sender.sendMessage("§e§lHome");
         sender.sendMessage("  §7/sethome §f- Set your home");
@@ -89,7 +90,7 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("  §7/paytax §f- Pay accumulated taxes");
         sender.sendMessage("  §7/repair [full] §f- Repair held item");
         sender.sendMessage("  §7/quest [claim|skip] §f- Repeatable quest, new one instantly");
-        sender.sendMessage("  §7/daily §f- Daily streak reward (auto on join)");
+        sender.sendMessage("  §7/daily §f- Claim streak (one missed day freezes it)");
         sender.sendMessage("");
         sender.sendMessage("§e§lOther");
         sender.sendMessage("  §7/bundledhelp §f- Show this help");

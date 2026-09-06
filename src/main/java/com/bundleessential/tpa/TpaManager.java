@@ -1,6 +1,10 @@
 package com.bundleessential.tpa;
 
 import com.bundleessential.BundledEssential;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -8,8 +12,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class TpaManager implements CommandExecutor {
@@ -17,10 +26,45 @@ public class TpaManager implements CommandExecutor {
     private final BundledEssential plugin;
     private final Map<UUID, UUID> pendingRequests = new HashMap<>();
     private final Map<UUID, Boolean> tpaHereRequests = new HashMap<>();
+    private final Set<UUID> autoAccept = new HashSet<>();
     private static final long REQUEST_EXPIRE_TICKS = 600L;
+    private final Gson gson = new GsonBuilder().create();
+    private final Path autoFile;
 
     public TpaManager(BundledEssential plugin) {
         this.plugin = plugin;
+        this.autoFile = plugin.getDataFolder().toPath().resolve("tpa.json");
+        loadAutoAccept();
+    }
+
+    private void loadAutoAccept() {
+        plugin.getDataFolder().mkdirs();
+        try {
+            if (Files.exists(autoFile)) {
+                JsonArray arr = gson.fromJson(new String(Files.readAllBytes(autoFile)), JsonArray.class);
+                if (arr != null) {
+                    for (JsonElement el : arr) {
+                        try {
+                            autoAccept.add(UUID.fromString(el.getAsString()));
+                        } catch (Exception ignored) {}
+                    }
+                }
+            }
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to load tpa.json");
+        }
+    }
+
+    private void saveAutoAccept() {
+        try {
+            JsonArray arr = new JsonArray();
+            for (UUID id : autoAccept) {
+                arr.add(id.toString());
+            }
+            Files.write(autoFile, gson.toJson(arr).getBytes());
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save tpa.json");
+        }
     }
 
     @Override
@@ -46,8 +90,34 @@ public class TpaManager implements CommandExecutor {
                 }
                 handleTpaHere(player, args[0]);
             }
+            case "tpaautoaccept" -> handleAutoAccept(player, args);
         }
         return true;
+    }
+
+    private void handleAutoAccept(Player player, String[] args) {
+        UUID id = player.getUniqueId();
+        boolean enable;
+        if (args.length >= 1) {
+            if (args[0].equalsIgnoreCase("on")) {
+                enable = true;
+            } else if (args[0].equalsIgnoreCase("off")) {
+                enable = false;
+            } else {
+                player.sendMessage("§cUsage: /tpaautoaccept [on|off]");
+                return;
+            }
+        } else {
+            enable = !autoAccept.contains(id);
+        }
+        if (enable) {
+            autoAccept.add(id);
+            player.sendMessage("§aTPA auto-accept §lON§a! Requests teleport you instantly.");
+        } else {
+            autoAccept.remove(id);
+            player.sendMessage("§eTPA auto-accept §lOFF§e. Use §6/tpaccept §emanually.");
+        }
+        saveAutoAccept();
     }
 
     private void handleTpa(Player sender, String targetName) {
@@ -63,6 +133,12 @@ public class TpaManager implements CommandExecutor {
 
         UUID senderId = sender.getUniqueId();
         UUID targetId = target.getUniqueId();
+
+        if (autoAccept.contains(targetId)) {
+            sender.sendMessage("§aTeleport request sent to §e" + target.getName() + "§a!");
+            doTeleport(sender, target, false, true);
+            return;
+        }
 
         pendingRequests.put(targetId, senderId);
         tpaHereRequests.put(targetId, false);
@@ -100,6 +176,12 @@ public class TpaManager implements CommandExecutor {
 
         UUID senderId = sender.getUniqueId();
         UUID targetId = target.getUniqueId();
+
+        if (autoAccept.contains(targetId)) {
+            sender.sendMessage("§aRequest sent to §e" + target.getName() + " §a to teleport to you.");
+            doTeleport(sender, target, true, true);
+            return;
+        }
 
         pendingRequests.put(targetId, senderId);
         tpaHereRequests.put(targetId, true);
@@ -144,14 +226,20 @@ public class TpaManager implements CommandExecutor {
             return;
         }
 
+        doTeleport(sender, target, isTpaHere, false);
+    }
+
+    /** Shared teleport for manual accepts and auto-accepts. */
+    private void doTeleport(Player sender, Player target, boolean isTpaHere, boolean auto) {
+        String tag = auto ? "§b[Auto] " : "";
         if (isTpaHere) {
             target.teleport(sender.getLocation());
-            target.sendMessage("§aYou have been teleported to §e" + sender.getName() + "§a!");
-            sender.sendMessage("§aTeleported §e" + target.getName() + " §ato you!");
+            target.sendMessage(tag + "§aYou have been teleported to §e" + sender.getName() + "§a!");
+            sender.sendMessage(tag + "§aTeleported §e" + target.getName() + " §ato you!");
         } else {
             sender.teleport(target.getLocation());
-            sender.sendMessage("§aYou have been teleported to §e" + target.getName() + "§a!");
-            target.sendMessage("§e" + sender.getName() + " §ahas accepted your teleport request!");
+            sender.sendMessage(tag + "§aYou have been teleported to §e" + target.getName() + "§a!");
+            target.sendMessage(tag + "§e" + sender.getName() + " §ahas accepted your teleport request!");
         }
     }
 }

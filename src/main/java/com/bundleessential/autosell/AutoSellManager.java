@@ -368,7 +368,8 @@ public class AutoSellManager implements Listener, CommandExecutor {
             target.sendMessage("§aYou received " + amount + "x §6§lAuto-Sell Chest§a! Right-click air to configure it.");
             return true;
         }
-        sender.sendMessage("§6§lAuto-Sell Chest §7— buy it in §e/shop §7(Custom tab)");
+        sender.sendMessage("§6§lAuto-Sell Chest §7— no command needed! Right-click air holding one to set it up.");
+        sender.sendMessage("§7Buy it in §e/shop §7(Custom tab). Place it, feed it by hand or hopper.");
         sender.sendMessage("§7Place it, feed it by hand or hopper — contents sell every interval.");
         sender.sendMessage("§7Right-click air holding it to set interval + recipients (equal split).");
         sender.sendMessage("§7Sneak + right-click a placed one to reconfigure it.");

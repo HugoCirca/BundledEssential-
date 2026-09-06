@@ -5,8 +5,8 @@
 economy:
   mob-kill-rewards: true
   playtime-rewards: true
-  playtime-min-reward: 2.0
-  playtime-max-reward: 5.0
+  playtime-min-reward: 8.0
+  playtime-max-reward: 12.0
 
 # Leveling System (collect XP orbs to level up, higher level = bigger playtime prize)
 leveling:

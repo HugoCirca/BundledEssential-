@@ -9,11 +9,17 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scoreboard.*;
@@ -21,7 +27,12 @@ import org.bukkit.scoreboard.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 public class BalanceManager implements Listener, CommandExecutor {
@@ -35,9 +46,18 @@ public class BalanceManager implements Listener, CommandExecutor {
     private LevelManager levelManager;
 
     private static final double MAX_MOB_REWARD = 10.0;
-    private static final double DEF_MIN_PLAYTIME_REWARD = 2.0;
-    private static final double DEF_MAX_PLAYTIME_REWARD = 5.0;
+    private static final double DEF_MIN_PLAYTIME_REWARD = 8.0;
+    private static final double DEF_MAX_PLAYTIME_REWARD = 12.0;
     private static final long PLAYTIME_INTERVAL_TICKS = 6000L;
+
+    // Assist tracking: who hit each mob (for split kill payouts + quest credit).
+    private static final int DAMAGERS_CAP = 2000;
+    private final Map<UUID, Set<UUID>> damagers = new LinkedHashMap<UUID, Set<UUID>>(256, 0.75f, false) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<UUID, Set<UUID>> eldest) {
+            return size() > DAMAGERS_CAP;
+        }
+    };
 
     public BalanceManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -217,6 +237,50 @@ public class BalanceManager implements Listener, CommandExecutor {
         updateScoreboard(player);
     }
 
+    @EventHandler(ignoreCancelled = true)
+    public void onEntityDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof LivingEntity)) {
+            return;
+        }
+        Player p = null;
+        if (event.getDamager() instanceof Player pl) {
+            p = pl;
+        } else if (event.getDamager() instanceof Projectile proj
+                && proj.getShooter() instanceof Player shooter) {
+            p = shooter;
+        }
+        if (p == null) {
+            return;
+        }
+        damagers.computeIfAbsent(event.getEntity().getUniqueId(), k -> new HashSet<>()).add(p.getUniqueId());
+    }
+
+    /** Everyone who hit this mob plus the killer (assist-split payouts/credit). */
+    public Set<UUID> contributors(Entity entity, UUID killerId) {
+        Set<UUID> out = new LinkedHashSet<>();
+        Set<UUID> hit = damagers.get(entity.getUniqueId());
+        if (hit != null) {
+            out.addAll(hit);
+        }
+        if (killerId != null) {
+            out.add(killerId);
+        }
+        return out;
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        UUID id = event.getPlayer().getUniqueId();
+        for (Set<UUID> set : damagers.values()) {
+            set.remove(id);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeathCleanup(EntityDeathEvent event) {
+        damagers.remove(event.getEntity().getUniqueId());
+    }
+
     @EventHandler
     public void onMobKill(EntityDeathEvent event) {
         Player killer = event.getEntity().getKiller();
@@ -229,9 +293,28 @@ public class BalanceManager implements Listener, CommandExecutor {
         } else {
             double reward = Math.round(random.nextDouble() * MAX_MOB_REWARD * 100.0) / 100.0;
             if (reward < 0.01) reward = 0.01;
-            if (bountyManager != null) reward = bountyManager.garnish(killer, reward);
-            addBalance(killer, reward);
-            killer.sendMessage("§a[Kill] §e+$" + Money.format(reward));
+            Set<UUID> party = contributors(event.getEntity(), killer.getUniqueId());
+            if (party.size() > 1) {
+                double share = Math.floor(reward / party.size() * 100.0) / 100.0;
+                double remainder = Math.round((reward - share * party.size()) * 100.0) / 100.0;
+                for (UUID id : party) {
+                    double pay = share + (id.equals(killer.getUniqueId()) ? remainder : 0);
+                    if (pay <= 0) continue;
+                    Player p = Bukkit.getPlayer(id);
+                    double kept = pay;
+                    if (p != null && bountyManager != null) kept = bountyManager.garnish(p, pay);
+                    if (p != null) {
+                        addBalance(p, kept);
+                        p.sendMessage("§a[Kill] §e+$" + Money.format(kept) + " §7(split " + party.size() + " ways)");
+                    } else {
+                        addBalance(id, kept);
+                    }
+                }
+            } else {
+                if (bountyManager != null) reward = bountyManager.garnish(killer, reward);
+                addBalance(killer, reward);
+                killer.sendMessage("§a[Kill] §e+$" + Money.format(reward));
+            }
         }
     }
 
