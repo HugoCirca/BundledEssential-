@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.bundleessential'
-version = '1.0.37'
+version = '1.0.38'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -22,7 +22,7 @@ dependencies {
 
 jar {
     archiveBaseName.set('BundledEssential')
-    archiveVersion.set('1.0.37')
+    archiveVersion.set('1.0.38')
 }
 
 // Captured here (configuration time) so processResources never touches
