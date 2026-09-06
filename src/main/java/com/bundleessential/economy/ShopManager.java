@@ -1,22 +1,22 @@
 package com.bundleessential.economy;
 
 import com.bundleessential.util.Money;
+import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -35,8 +35,7 @@ public class ShopManager implements Listener {
     private final Map<UUID, Long> lastBuyTime = new HashMap<>();
     private static final long BUY_DEBOUNCE_MS = 750L;
     private final Map<String, Material[]> categories = new LinkedHashMap<>();
-    private final Set<UUID> searching = new HashSet<>();
-    private final Set<UUID> chatPending = new HashSet<>();
+    private final Set<UUID> searchSubmitted = new HashSet<>();
 
     private static final int ITEMS_PER_PAGE = 21;
     private static final int[] ITEM_SLOTS = {
@@ -44,7 +43,9 @@ public class ShopManager implements Listener {
         19,20,21,22,23,24,25,
         28,29,30,31,32,33,34
     };
-    private static final String SEARCH_TITLE = "§b§lSearch items";
+    // Plain title on purpose: Paper 1.21.4+ kicks players when an anvil title
+    // sent via packets contains legacy color codes.
+    private static final String SEARCH_TITLE = "Search shop items";
 
     public ShopManager(BalanceManager balanceManager, PriceManager priceManager, SellManager sellManager) {
         this.balanceManager = balanceManager;
@@ -174,11 +175,43 @@ public class ShopManager implements Listener {
     }
 
     private void openSearch(Player player) {
-        searching.add(player.getUniqueId());
-        Inventory anvil = Bukkit.createInventory(null, InventoryType.ANVIL, SEARCH_TITLE);
-        anvil.setItem(0, makeItem(Material.PAPER, "§7Rename me to search..."));
-        player.openInventory(anvil);
-        player.sendMessage("§bType what to search in the anvil, then click the result. §7(Empty = type in chat instead)");
+        Plugin plugin = JavaPlugin.getProvidingPlugin(ShopManager.class);
+        try {
+            new AnvilGUI.Builder()
+                    .onClose(state -> {
+                        Player p = state.getPlayer();
+                        // Submit already scheduled showResults -> don't reopen shop over it.
+                        if (searchSubmitted.remove(p.getUniqueId())) {
+                            return;
+                        }
+                        if (!p.isOnline()) {
+                            return;
+                        }
+                        Bukkit.getScheduler().runTask(plugin, () -> openShop(p));
+                    })
+                    .onClick((slot, state) -> {
+                        if (slot != AnvilGUI.Slot.OUTPUT) {
+                            return Collections.emptyList();
+                        }
+                        String text = state.getText() == null ? "" : state.getText().trim();
+                        Player p = state.getPlayer();
+                        if (text.isEmpty()) {
+                            return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                        }
+                        searchSubmitted.add(p.getUniqueId());
+                        Bukkit.getScheduler().runTask(plugin, () -> showResults(p, text));
+                        return Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    })
+                    .text("Type item name...")
+                    .title(SEARCH_TITLE)
+                    .plugin(plugin)
+                    .open(player);
+        } catch (Exception e) {
+            // Unsupported version etc: fall back to the shop instead of a dead screen.
+            plugin.getLogger().warning("Shop search unavailable: " + e.getMessage());
+            openShop(player);
+            player.sendMessage("§cSearch is unavailable on this server version.");
+        }
     }
 
     private Material[] searchItems(String query) {
@@ -195,6 +228,16 @@ public class ShopManager implements Listener {
         return out.toArray(new Material[0]);
     }
 
+    /** Text fallback for /shop search <name> (Bedrock/Geyser players, quick typed search). */
+    public void searchCommand(Player player, String query) {
+        String q = query == null ? "" : query.trim();
+        if (q.isEmpty()) {
+            player.sendMessage("§cUsage: /shop search <item name>");
+            return;
+        }
+        showResults(player, q);
+    }
+
     private void showResults(Player player, String query) {
         Material[] matches = searchItems(query);
         if (matches.length == 0) {
@@ -205,21 +248,6 @@ public class ShopManager implements Listener {
         String q = query.length() > 24 ? query.substring(0, 24) : query;
         openCategoryPage(player, "Search: " + q, matches, 0);
         player.sendMessage("§aFound §e" + matches.length + " §aitem(s) for '§e" + query + "§a'.");
-    }
-
-    /** Rename text of an anvil inventory via reflection (Paper-only API, null when unsupported). */
-    private String getAnvilText(Inventory anvil) {
-        try {
-            java.lang.reflect.Method m = anvil.getClass().getMethod("getRenameText");
-            Object o = m.invoke(anvil);
-            return o == null ? null : o.toString();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private boolean isSearchAnvil(String title) {
-        return SEARCH_TITLE.equals(title);
     }
 
     private Material[] logsItems() {
@@ -674,27 +702,6 @@ public class ShopManager implements Listener {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         String title = event.getView().getTitle();
 
-        if (isSearchAnvil(title)) {
-            event.setCancelled(true);
-            if (event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
-            if (event.getSlot() == 2) {
-                String text = getAnvilText(event.getView().getTopInventory());
-                UUID id = player.getUniqueId();
-                if (text == null || text.trim().isEmpty()) {
-                    // Empty rename (or Bedrock where rename may not work) -> type in chat instead
-                    searching.remove(id);
-                    chatPending.add(id);
-                    player.closeInventory();
-                    player.sendMessage("§bType your search in chat, or 'cancel'.");
-                } else {
-                    searching.remove(id);
-                    player.closeInventory();
-                    showResults(player, text.trim());
-                }
-            }
-            return;
-        }
-
         boolean isMain = isMainShop(title);
         boolean isCategory = isCategoryShop(title);
 
@@ -782,31 +789,9 @@ public class ShopManager implements Listener {
     }
 
     @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) return;
-        if (searching.remove(player.getUniqueId())) {
-            // Closed the anvil without submitting -> back to shop
-            Bukkit.getScheduler().runTask(getPlugin(), () -> openShop(player));
-        }
-    }
-
-    @EventHandler
-    public void onChat(AsyncPlayerChatEvent event) {
-        Player player = event.getPlayer();
-        if (!chatPending.remove(player.getUniqueId())) return;
-        event.setCancelled(true);
-        String msg = event.getMessage().trim();
-        if (msg.equalsIgnoreCase("cancel")) {
-            Bukkit.getScheduler().runTask(getPlugin(), () -> openShop(player));
-            return;
-        }
-        Bukkit.getScheduler().runTask(getPlugin(), () -> showResults(player, msg));
-    }
-
-    @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         String title = event.getView().getTitle();
-        if (isMainShop(title) || isCategoryShop(title) || isSearchAnvil(title)) {
+        if (isMainShop(title) || isCategoryShop(title)) {
             event.setCancelled(true);
         }
     }

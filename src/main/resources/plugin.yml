@@ -41,8 +41,8 @@ commands:
     description: Cancel your pending trade requests
     usage: /tradecancel
   shop:
-    description: Open the shop
-    usage: /shop
+    description: Open the shop or search it by name
+    usage: /shop [search <name>]
   pay:
     description: Pay a player
     usage: /pay <player> <amount>

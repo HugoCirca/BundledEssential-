@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'com.gradleup.shadow' version '9.6.1'
 }
 
 group = 'com.bundleessential'
@@ -14,15 +15,24 @@ repositories {
     mavenCentral()
     maven { url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/' }
     maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+    maven { url = 'https://mvn.wesjd.net/' }
 }
 
 dependencies {
     compileOnly 'org.spigotmc:spigot-api:1.20.4-R0.1-SNAPSHOT'
+    implementation 'net.wesjd:anvilgui:1.10.13-SNAPSHOT'
 }
 
 jar {
+    // Disabled: the shaded jar below is the real artifact (AnvilGUI must be inside).
+    enabled = false
+}
+
+shadowJar {
     archiveBaseName.set('BundledEssential')
     archiveVersion.set('1.0.41')
+    archiveClassifier.set('')
+    relocate 'net.wesjd.anvilgui', 'com.bundleessential.anvilgui'
 }
 
 // Captured here (configuration time) so processResources never touches

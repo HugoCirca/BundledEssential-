@@ -88,6 +88,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | Command | Description |
 |---------|-------------|
 | `/shop` | Open the shop with categories |
+| `/shop search <name>` | Jump straight to matching items (Bedrock-friendly, no anvil needed) |
 | `/sell` | Sell the item in your main hand |
 | `/sellgui` | Open sell GUI — put items in, close to sell |
 | `/balance` | Check your balance |
@@ -115,7 +116,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - **Nether** — Full Nether set incl. Blackstone, Basalt, Nylium, Netherite
 - **End** — End Stone, Purpur, Chorus, all Shulker Boxes, Dragon Egg, Elytra
 - **New 1.21-26.2** — Copper/Tuff variants, Pale Garden, Resin, Happy Ghast gear, Sulfur & Cinnabar sets, new discs
-- **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page (chat fallback included)
+- **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page. No anvil? Use `/shop search <name>` instead (works everywhere, incl. Bedrock)
 
 #### Dynamic Pricing
 - Prices drift ±5-10% every 5 minutes

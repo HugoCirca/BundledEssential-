@@ -162,7 +162,14 @@ public class BundledEssential extends JavaPlugin {
         if (shopManager != null) {
             getCommand("shop").setExecutor((sender, command, label, args) -> {
                 if (sender instanceof Player player) {
-                    shopManager.openShop(player);
+                    if (args.length >= 1 && args[0].equalsIgnoreCase("search")) {
+                        String query = args.length >= 2
+                                ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length))
+                                : "";
+                        shopManager.searchCommand(player, query);
+                    } else {
+                        shopManager.openShop(player);
+                    }
                 } else {
                     sender.sendMessage("§cOnly players can use this command!");
                 }
