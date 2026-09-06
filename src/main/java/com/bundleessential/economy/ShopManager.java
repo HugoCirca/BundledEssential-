@@ -34,7 +34,9 @@ public class ShopManager implements Listener {
     private final SellManager sellManager;
     private final Map<UUID, ShopPage> playerPages = new HashMap<>();
     private final Map<UUID, Long> lastBuyTime = new HashMap<>();
-    private static final long BUY_DEBOUNCE_MS = 750L;
+    // Bedrock/Geyser can fire one tap twice (dupes land <50ms apart),
+    // so ignore re-buys inside a short window without eating spam-clicks.
+    private static final long BUY_DEBOUNCE_MS = 150L;
     private final Map<String, Material[]> categories = new LinkedHashMap<>();
     private final Set<UUID> searchSubmitted = new HashSet<>();
     private final Map<UUID, PendingBuy> pendingBuys = new HashMap<>();
