@@ -949,9 +949,11 @@ public class ShopManager implements Listener {
                     }
                 }
                 case 12 -> openBuyGui(player, pending.material,
-                        pending.amount - (event.isShiftClick() ? 10 : 1));
+                        pending.amount - (event.isShiftClick() ? 10 : 1),
+                        pending.unitOverride, pending.product);
                 case 14 -> openBuyGui(player, pending.material,
-                        pending.amount + (event.isShiftClick() ? 10 : 1));
+                        pending.amount + (event.isShiftClick() ? 10 : 1),
+                        pending.unitOverride, pending.product);
                 case 16 -> confirmBuy(player, pending);
                 case 19 -> buyBulk(player, pending, 10);
                 case 21 -> buyBulk(player, pending, 25);

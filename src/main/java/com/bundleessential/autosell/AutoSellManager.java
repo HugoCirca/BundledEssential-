@@ -742,9 +742,12 @@ public class AutoSellManager implements Listener, CommandExecutor {
             if (recipients.isEmpty()) {
                 continue;
             }
+            Inventory inv = chest.getInventory();
             double total = 0.0;
             int count = 0;
-            for (ItemStack item : chest.getBlockInventory().getContents()) {
+            List<Integer> toClear = new ArrayList<>();
+            for (int i = 0; i < inv.getSize(); i++) {
+                ItemStack item = inv.getItem(i);
                 if (item == null || item.getType() == Material.AIR) {
                     continue;
                 }
@@ -753,15 +756,15 @@ public class AutoSellManager implements Listener, CommandExecutor {
                 }
                 total += Math.round(prices.getSellPriceWithEnchants(item) * item.getAmount() * 100.0) / 100.0;
                 count += item.getAmount();
+                toClear.add(i);
             }
             if (count == 0 || total <= 0) {
                 continue;
             }
             total = Math.round(total * 100.0) / 100.0;
-            chest.getBlockInventory().clear();
-            try {
-                chest.update();
-            } catch (Exception ignored) {}
+            for (int slot : toClear) {
+                inv.setItem(slot, null);
+            }
             int n = recipients.size();
             double share = Math.floor(total / n * 100.0) / 100.0;
             double remainder = Math.round((total - share * n) * 100.0) / 100.0;
