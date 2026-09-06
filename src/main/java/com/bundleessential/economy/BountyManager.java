@@ -9,13 +9,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class BountyManager implements CommandExecutor {
 
     private final BalanceManager balanceManager;
     private final Map<UUID, Double> bounties = new HashMap<>();
+    private final Map<UUID, Set<UUID>> bountyPlacers = new HashMap<>();
     private final Map<UUID, Double> unpaidTaxes = new HashMap<>();
     private final Map<UUID, Long> lastTaxTime = new HashMap<>();
     private final Map<UUID, Long> taxSince = new HashMap<>();
@@ -176,6 +179,7 @@ public class BountyManager implements CommandExecutor {
 
         if (balanceManager.removeBalance(player, amount)) {
             bounties.merge(target.getUniqueId(), amount, Double::sum);
+            bountyPlacers.computeIfAbsent(target.getUniqueId(), k -> new HashSet<>()).add(player.getUniqueId());
             player.sendMessage("§aYou placed a §e$" + Money.format(amount) + " §abounty on §e" + target.getName());
             target.sendMessage("§cA bounty of §e$" + Money.format(amount) + " §chas been placed on you!");
             Bukkit.broadcastMessage("§6[Bounty] §e" + player.getName() + " §cplaced a §e$" + Money.format(amount) + " §cbounty on §e" + target.getName());
@@ -220,7 +224,13 @@ public class BountyManager implements CommandExecutor {
     }
 
     public void claimBounty(Player killer, Player victim) {
+        Set<UUID> placers = bountyPlacers.getOrDefault(victim.getUniqueId(), new HashSet<>());
+        if (placers.contains(killer.getUniqueId())) {
+            killer.sendMessage("§cYou can't claim a bounty you placed! §7It stays up for someone else.");
+            return;
+        }
         Double bounty = bounties.remove(victim.getUniqueId());
+        bountyPlacers.remove(victim.getUniqueId());
         if (bounty != null && bounty > 0) {
             double tax = Math.round(bounty * BOUNTY_TAX_RATE * 100.0) / 100.0;
             double payout = Math.round((bounty - tax) * 100.0) / 100.0;

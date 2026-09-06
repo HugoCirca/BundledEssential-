@@ -101,7 +101,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 #### Money Sources
 - **Kill mobs** — $0.01 to $10.00 (random)
 - **Playtime** — $2.00 to $5.00 every 5 minutes, scaled up by your level (+10% per level by default, tunable in `config.yml` under `economy:`)
-- **Bounty claims** — Kill a player with a bounty to claim it (20% tax)
+- **Bounty claims** — Kill a player with a bounty to claim it (20% tax, placers can't claim their own)
 
 #### Shop Categories
 - **Logs** — All logs, woods, planks, saplings, leaves (incl. Cherry, Pale Oak)
