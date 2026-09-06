@@ -32,6 +32,7 @@ rewards:
 # Dynamic Light (held torches, lanterns, lava buckets, etc. glow around you)
 dynamic-light:
   interval-ticks: 10
+  spawner-freeze-radius: 16
 
 # Chunkloaders (/chunkload) — named force-loaded chunks, 3 free per player.
 chunkload:

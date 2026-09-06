@@ -115,6 +115,10 @@ public class DynamicLightManager implements Listener {
 
         if (level <= 0) return;
 
+        // Dark-room spawners: don't illuminate the farm while player stands in it.
+        // Spawners (and natural dark rooms) need low light even if player holds a torch.
+        if (hasNearbySpawner(world, bx, by, bz)) return;
+
         Block at = world.getBlockAt(bx, by, bz);
         if (at.getType() == Material.AIR) {
             place(at, level);
@@ -125,9 +129,29 @@ public class DynamicLightManager implements Listener {
         // Feet occupied (e.g. tall grass zone handled as AIR, but just in case): try eye level
         Block eye = player.getEyeLocation().getBlock();
         if (eye.getWorld().equals(world) && eye.getType() == Material.AIR) {
+            if (hasNearbySpawner(world, eye.getX(), eye.getY(), eye.getZ())) return;
             place(eye, level);
             lights.put(id, new Tracked(world.getUID(), eye.getX(), eye.getY(), eye.getZ(), level));
         }
+    }
+
+    private boolean hasNearbySpawner(World world, int bx, int by, int bz) {
+        int radius = 16;
+        try {
+            radius = Math.max(0, plugin.getConfig().getInt("dynamic-light.spawner-freeze-radius", 16));
+        } catch (Exception ignored) {}
+        if (radius <= 0) return false;
+        // Scan cube centred on proposed light pos — spawner range is 8, but player moves, so 16 is safe.
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dy = -8; dy <= 8; dy++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    try {
+                        if (world.getBlockAt(bx + dx, by + dy, bz + dz).getType() == Material.SPAWNER) return true;
+                    } catch (Exception ignored) {}
+                }
+            }
+        }
+        return false;
     }
 
     private void place(Block block, int level) {
