@@ -152,7 +152,27 @@ public class ChunkLoadManager implements CommandExecutor {
         }.runTaskTimer(plugin, SAVE_INTERVAL_TICKS, SAVE_INTERVAL_TICKS);
     }
 
-    /** Re-apply every stored loader (force-loads do not survive restarts). */
+    private void addTicket(World world, int cx, int cz) {
+        try {
+            world.setChunkForceLoaded(cx, cz, true);
+        } catch (Exception ignored) {}
+        try {
+            // Level 31 plugin ticket = full entity ticking (mobs, crops, redstone) like player nearby.
+            // Forced alone only keeps chunk loaded, not ticking — need both (ChunkTicker approach).
+            world.getChunkAt(cx, cz).addPluginChunkTicket(plugin);
+        } catch (Exception ignored) {}
+    }
+
+    private void removeTicket(World world, int cx, int cz) {
+        try {
+            world.setChunkForceLoaded(cx, cz, false);
+        } catch (Exception ignored) {}
+        try {
+            world.getChunkAt(cx, cz).removePluginChunkTicket(plugin);
+        } catch (Exception ignored) {}
+    }
+
+    /** Re-apply every stored loader (both tickets do not survive restarts fully). */
     private void applyAll() {
         int count = 0;
         for (Map.Entry<String, JsonElement> en : new ArrayList<>(loaders().entrySet())) {
@@ -169,14 +189,28 @@ public class ChunkLoadManager implements CommandExecutor {
                     continue;
                 }
                 try {
-                    world.setChunkForceLoaded(intOf(e, "cx"), intOf(e, "cz"), true);
+                    addTicket(world, intOf(e, "cx"), intOf(e, "cz"));
                     count++;
                 } catch (Exception ignored) {}
             }
         }
         if (count > 0) {
-            plugin.getLogger().info("Re-applied " + count + " chunkloader(s).");
+            plugin.getLogger().info("Re-applied " + count + " chunkloader(s) (force + plugin ticket).");
         }
+        // Warn if server pauses when empty — even force-loaded chunks stop ticking then.
+        try {
+            java.util.Properties props = new java.util.Properties();
+            java.io.File propFile = new java.io.File("server.properties");
+            if (propFile.exists()) {
+                try (java.io.FileInputStream in = new java.io.FileInputStream(propFile)) {
+                    props.load(in);
+                }
+                String pause = props.getProperty("pause-when-empty-seconds", "60");
+                if (!"0".equals(pause.trim())) {
+                    plugin.getLogger().warning("pause-when-empty-seconds=" + pause.trim() + " — chunkloaders stall with 0 players! Set it to 0 in server.properties");
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     /** True if any stored loader (any player) still covers this chunk. */
@@ -277,7 +311,7 @@ public class ChunkLoadManager implements CommandExecutor {
         e.addProperty("cz", cz);
         mine.add(e);
         try {
-            player.getWorld().setChunkForceLoaded(cx, cz, true);
+            addTicket(player.getWorld(), cx, cz);
         } catch (Exception ex) {
             player.sendMessage("§cCould not force-load this chunk on your server version.");
             mine.remove(e);
@@ -360,11 +394,11 @@ public class ChunkLoadManager implements CommandExecutor {
             try {
                 World world = Bukkit.getWorld(UUID.fromString(worldId));
                 if (world != null) {
-                    world.setChunkForceLoaded(cx, cz, false);
+                    removeTicket(world, cx, cz);
                 }
             } catch (Exception ignored) {}
         }
-        player.sendMessage("§aDeleted loader §e" + targetName + "§a! §7(" + mine.size() + "/" + MAX_PER_PLAYER + " used)");
+        player.sendMessage("§aDeleted loader §e" + targetName + "§a! §7(" + mine.size() + "/" + limitOf(player.getUniqueId()) + " used)");
     }
 
     private void handleShow(Player player, String[] args) {

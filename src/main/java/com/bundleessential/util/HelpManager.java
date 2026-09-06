@@ -38,7 +38,7 @@ public class HelpManager implements CommandExecutor {
         // Dark colors only: book pages are light parchment, white text is unreadable.
         List<String> pages = new ArrayList<>();
         pages.add("§4§lBundledEssential\n§0Command guide with what everything does.\n\n§0Run §1/bundledhelp §0anytime to get this book again.\n\n§0Covers: TPA, Home, Trade, Economy, Quests, Custom");
-        pages.add("§4§lTPA\n§1/tpa <player>\n§0- ask to teleport to them\n§1/tpahere <player>\n§0- ask them to come to you\n§1/tpaccept\n§0- say yes to a request\n§1/tpaautoaccept\n§0- auto-say yes, toggle\n\n§0Requests expire in 30s.");
+        pages.add("§4§lTPA\n§1/tpa <player>\n§0- ask to teleport to them\n§1/tpahere <player>\n§0- ask them to come to you\n§1/tpaccept\n§0- say yes to a request\n§1/tpaautoaccept\n§0- auto-say yes, toggle\n§1/tpaautocancel\n§0- auto-deny, toggle\n\n§0Requests expire in 30s.");
         pages.add("§4§lHome\n§1/sethome\n§0- save where you stand\n§1/home\n§0- teleport back there\n§1/removehome\n§0- delete your home\n\n§4§lBack\n§1/back\n§0- return to death spot");
         pages.add("§4§lWaypoints\n§1/waypoint\n§0- open the travel GUI\n§1/waypoint new <name>\n§0- save this spot\n§1/waypoint delete <name>\n§0- forget a spot\n§1/waypoint <name>\n§0- teleport to a spot");
         pages.add("§4§lTrade\n§1/trade <player>\n§0- offer a trade\n§1/tradeaccept\n§0- open the trade window\n§1/tradecancel\n§0- back out safely\n\n§0Both sides lock in green to swap items.");
@@ -60,6 +60,7 @@ public class HelpManager implements CommandExecutor {
         sender.sendMessage("  §7/tpahere <player> §f- Request player to teleport to you");
         sender.sendMessage("  §7/tpaccept §f- Accept teleport request");
         sender.sendMessage("  §7/tpaautoaccept [on|off] §f- Auto-accept requests");
+        sender.sendMessage("  §7/tpaautocancel [on|off] §f- Auto-cancel requests");
         sender.sendMessage("");
         sender.sendMessage("§e§lHome");
         sender.sendMessage("  §7/sethome §f- Set your home");

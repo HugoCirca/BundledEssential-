@@ -19,6 +19,9 @@ commands:
   tpaautoaccept:
     description: Toggle instant auto-accept of teleport requests
     usage: /tpaautoaccept [on|off]
+  tpaautocancel:
+    description: Toggle instant auto-cancel of teleport requests
+    usage: /tpaautocancel [on|off]
   sethome:
     description: Set your home location
     usage: /sethome

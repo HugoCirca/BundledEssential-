@@ -27,6 +27,7 @@ public class TpaManager implements CommandExecutor {
     private final Map<UUID, UUID> pendingRequests = new HashMap<>();
     private final Map<UUID, Boolean> tpaHereRequests = new HashMap<>();
     private final Set<UUID> autoAccept = new HashSet<>();
+    private final Set<UUID> autoCancel = new HashSet<>();
     private static final long REQUEST_EXPIRE_TICKS = 600L;
     private final Gson gson = new GsonBuilder().create();
     private final Path autoFile;
@@ -34,20 +35,25 @@ public class TpaManager implements CommandExecutor {
     public TpaManager(BundledEssential plugin) {
         this.plugin = plugin;
         this.autoFile = plugin.getDataFolder().toPath().resolve("tpa.json");
-        loadAutoAccept();
+        loadAuto();
     }
 
-    private void loadAutoAccept() {
+    private void loadAuto() {
         plugin.getDataFolder().mkdirs();
         try {
             if (Files.exists(autoFile)) {
-                JsonArray arr = gson.fromJson(new String(Files.readAllBytes(autoFile)), JsonArray.class);
-                if (arr != null) {
-                    for (JsonElement el : arr) {
-                        try {
-                            autoAccept.add(UUID.fromString(el.getAsString()));
-                        } catch (Exception ignored) {}
-                    }
+                String raw = new String(Files.readAllBytes(autoFile));
+                com.google.gson.JsonElement root = gson.fromJson(raw, com.google.gson.JsonElement.class);
+                if (root != null && root.isJsonObject()) {
+                    com.google.gson.JsonObject obj = root.getAsJsonObject();
+                    JsonArray acc = obj.has("autoAccept") && obj.get("autoAccept").isJsonArray() ? obj.getAsJsonArray("autoAccept") : new JsonArray();
+                    JsonArray can = obj.has("autoCancel") && obj.get("autoCancel").isJsonArray() ? obj.getAsJsonArray("autoCancel") : new JsonArray();
+                    for (JsonElement el : acc) try { autoAccept.add(UUID.fromString(el.getAsString())); } catch (Exception ignored) {}
+                    for (JsonElement el : can) try { autoCancel.add(UUID.fromString(el.getAsString())); } catch (Exception ignored) {}
+                } else if (root != null && root.isJsonArray()) {
+                    // legacy: plain array was autoAccept
+                    JsonArray arr = root.getAsJsonArray();
+                    for (JsonElement el : arr) try { autoAccept.add(UUID.fromString(el.getAsString())); } catch (Exception ignored) {}
                 }
             }
         } catch (IOException e) {
@@ -55,17 +61,24 @@ public class TpaManager implements CommandExecutor {
         }
     }
 
-    private void saveAutoAccept() {
+    private void saveAuto() {
         try {
-            JsonArray arr = new JsonArray();
-            for (UUID id : autoAccept) {
-                arr.add(id.toString());
-            }
-            Files.write(autoFile, gson.toJson(arr).getBytes());
+            com.google.gson.JsonObject obj = new com.google.gson.JsonObject();
+            JsonArray acc = new JsonArray();
+            for (UUID id : autoAccept) acc.add(id.toString());
+            JsonArray can = new JsonArray();
+            for (UUID id : autoCancel) can.add(id.toString());
+            obj.add("autoAccept", acc);
+            obj.add("autoCancel", can);
+            Files.write(autoFile, gson.toJson(obj).getBytes());
         } catch (IOException e) {
             plugin.getLogger().warning("Failed to save tpa.json");
         }
     }
+
+    // legacy wrappers
+    private void loadAutoAccept() { loadAuto(); }
+    private void saveAutoAccept() { saveAuto(); }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -91,6 +104,7 @@ public class TpaManager implements CommandExecutor {
                 handleTpaHere(player, args[0]);
             }
             case "tpaautoaccept" -> handleAutoAccept(player, args);
+            case "tpaautocancel" -> handleAutoCancel(player, args);
         }
         return true;
     }
@@ -112,12 +126,39 @@ public class TpaManager implements CommandExecutor {
         }
         if (enable) {
             autoAccept.add(id);
+            autoCancel.remove(id);
             player.sendMessage("§aTPA auto-accept §lON§a! Requests teleport you instantly.");
         } else {
             autoAccept.remove(id);
             player.sendMessage("§eTPA auto-accept §lOFF§e. Use §6/tpaccept §emanually.");
         }
-        saveAutoAccept();
+        saveAuto();
+    }
+
+    private void handleAutoCancel(Player player, String[] args) {
+        UUID id = player.getUniqueId();
+        boolean enable;
+        if (args.length >= 1) {
+            if (args[0].equalsIgnoreCase("on")) {
+                enable = true;
+            } else if (args[0].equalsIgnoreCase("off")) {
+                enable = false;
+            } else {
+                player.sendMessage("§cUsage: /tpaautocancel [on|off]");
+                return;
+            }
+        } else {
+            enable = !autoCancel.contains(id);
+        }
+        if (enable) {
+            autoCancel.add(id);
+            autoAccept.remove(id);
+            player.sendMessage("§cTPA auto-cancel §lON§c! Incoming requests are denied instantly.");
+        } else {
+            autoCancel.remove(id);
+            player.sendMessage("§eTPA auto-cancel §lOFF§e.");
+        }
+        saveAuto();
     }
 
     private void handleTpa(Player sender, String targetName) {
@@ -134,6 +175,11 @@ public class TpaManager implements CommandExecutor {
         UUID senderId = sender.getUniqueId();
         UUID targetId = target.getUniqueId();
 
+        if (autoCancel.contains(targetId)) {
+            sender.sendMessage("§c" + target.getName() + " §cis not accepting teleport requests right now.");
+            target.sendMessage("§7Auto-cancelled TPA from §e" + sender.getName() + "§7.");
+            return;
+        }
         if (autoAccept.contains(targetId)) {
             sender.sendMessage("§aTeleport request sent to §e" + target.getName() + "§a!");
             doTeleport(sender, target, false, true);
@@ -177,6 +223,11 @@ public class TpaManager implements CommandExecutor {
         UUID senderId = sender.getUniqueId();
         UUID targetId = target.getUniqueId();
 
+        if (autoCancel.contains(targetId)) {
+            sender.sendMessage("§c" + target.getName() + " §cis not accepting teleport requests right now.");
+            target.sendMessage("§7Auto-cancelled TPAHere from §e" + sender.getName() + "§7.");
+            return;
+        }
         if (autoAccept.contains(targetId)) {
             sender.sendMessage("§aRequest sent to §e" + target.getName() + " §a to teleport to you.");
             doTeleport(sender, target, true, true);

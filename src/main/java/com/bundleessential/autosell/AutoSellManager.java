@@ -32,6 +32,7 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -209,6 +210,31 @@ public class AutoSellManager implements Listener, CommandExecutor {
             data.add("chests", new JsonObject());
         }
         return data.getAsJsonObject("chests");
+    }
+
+    private JsonObject pending() {
+        if (!data.has("pending") || !data.get("pending").isJsonObject()) {
+            data.add("pending", new JsonObject());
+        }
+        return data.getAsJsonObject("pending");
+    }
+
+    private void queueOffline(UUID recipient, String ownerName, double pay, int count) {
+        JsonObject all = pending();
+        String key = recipient.toString();
+        JsonArray arr;
+        if (all.has(key) && all.get(key).isJsonArray()) {
+            arr = all.getAsJsonArray(key);
+        } else {
+            arr = new JsonArray();
+            all.add(key, arr);
+        }
+        JsonObject entry = new JsonObject();
+        entry.addProperty("owner", ownerName);
+        entry.addProperty("pay", pay);
+        entry.addProperty("count", count);
+        entry.addProperty("time", System.currentTimeMillis());
+        arr.add(entry);
     }
 
     private static String locKey(Block block) {
@@ -629,6 +655,40 @@ public class AutoSellManager implements Listener, CommandExecutor {
         saveAll();
     }
 
+    @EventHandler
+    public void onJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        JsonObject all = pending();
+        String key = player.getUniqueId().toString();
+        if (!all.has(key) || !all.get(key).isJsonArray()) {
+            return;
+        }
+        JsonArray arr = all.getAsJsonArray(key);
+        if (arr.size() == 0) {
+            return;
+        }
+        // Delay 1s so join messages don't drown it
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            double total = 0;
+            int sales = 0;
+            List<String> owners = new ArrayList<>();
+            for (JsonElement el : arr) {
+                try {
+                    JsonObject o = el.getAsJsonObject();
+                    total += o.get("pay").getAsDouble();
+                    sales++;
+                    String owner = o.get("owner").getAsString();
+                    if (!owners.contains(owner)) owners.add(owner);
+                } catch (Exception ignored) {}
+            }
+            if (sales > 0) {
+                player.sendMessage("§a[AutoSell] §eYou received §a$" + Money.format(total) + " §7from " + String.join(", ", owners) + "'s chest(s) §7while offline §7(" + sales + " sale(s))");
+            }
+            all.remove(key);
+            saveAll();
+        }, 20L);
+    }
+
     private void openAddPlayer(Player player, UUID chestId) {
         guiSwitching.add(player.getUniqueId());
         try {
@@ -646,11 +706,10 @@ public class AutoSellManager implements Listener, CommandExecutor {
                         if (name.isEmpty()) {
                             return Collections.singletonList(AnvilGUI.ResponseAction.close());
                         }
+                        // Allow any name (including Geyser/Floodgate Bedrock players like ".Steve").
+                        // hasPlayedBefore is unreliable for Bedrock accounts, so we accept even
+                        // never-seen names and resolve their UUID via OfflinePlayer.
                         OfflinePlayer op = Bukkit.getOfflinePlayer(name);
-                        if (!op.hasPlayedBefore() && !op.isOnline()) {
-                            return Collections.singletonList(
-                                    AnvilGUI.ResponseAction.replaceInputText("Unknown player"));
-                        }
                         UUID target = op.getUniqueId();
                         Bukkit.getScheduler().runTask(plugin, () -> addRecipient(player, chestId, target));
                         return Collections.singletonList(AnvilGUI.ResponseAction.close());
@@ -768,15 +827,24 @@ public class AutoSellManager implements Listener, CommandExecutor {
             int n = recipients.size();
             double share = Math.floor(total / n * 100.0) / 100.0;
             double remainder = Math.round((total - share * n) * 100.0) / 100.0;
+            String ownerName;
+            try {
+                ownerName = nameOf(UUID.fromString(e.get("owner").getAsString()));
+            } catch (Exception ex) {
+                ownerName = "someone";
+            }
             for (int i = 0; i < n; i++) {
                 double pay = share + (i == 0 ? remainder : 0);
                 if (pay <= 0) {
                     continue;
                 }
-                balance.addBalance(recipients.get(i), pay);
-                Player p = Bukkit.getPlayer(recipients.get(i));
+                UUID rid = recipients.get(i);
+                balance.addBalance(rid, pay);
+                Player p = Bukkit.getPlayer(rid);
                 if (p != null) {
-                    p.sendMessage("§a[AutoSell] §e+$" + Money.format(pay) + " §7(sold " + count + " items)");
+                    p.sendMessage("§a[AutoSell] §e+$" + Money.format(pay) + " §7from " + ownerName + "'s chest §7(sold " + count + " items)");
+                } else {
+                    queueOffline(rid, ownerName, pay, count);
                 }
             }
         }

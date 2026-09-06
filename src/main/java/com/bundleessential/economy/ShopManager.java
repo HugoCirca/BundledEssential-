@@ -134,6 +134,11 @@ public class ShopManager implements Listener {
                 if (listed.contains(m) || excluded.contains(m)) {
                     continue;
                 }
+                // Spawn eggs default to $1 if unpriced — hide them from shop.
+                // Use shop.json or Custom category if you truly want to sell one.
+                if (m.name().endsWith("_SPAWN_EGG")) {
+                    continue;
+                }
                 rest.add(m);
             } catch (Exception ignored) {}
         }

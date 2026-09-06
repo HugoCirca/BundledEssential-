@@ -173,6 +173,7 @@ public class BundledEssential extends JavaPlugin {
             getCommand("tpaccept").setExecutor(tpaManager);
             getCommand("tpahere").setExecutor(tpaManager);
             getCommand("tpaautoaccept").setExecutor(tpaManager);
+            getCommand("tpaautocancel").setExecutor(tpaManager);
         }
         if (homeManager != null) {
             getCommand("sethome").setExecutor(homeManager);
