@@ -296,6 +296,15 @@ public class ShopManager implements Listener {
         inv.setItem(14, makeItem(Material.LIME_STAINED_GLASS_PANE, "§a§l+1", "§7Shift-click: +10"));
         inv.setItem(16, makeItem(Material.EMERALD_BLOCK, "§a§lConfirm: $" + Money.format(total),
                 "§7Buy " + amount + "x " + formatName(material)));
+        inv.setItem(19, makeItem(Material.YELLOW_STAINED_GLASS_PANE, "§e§lBuy 10",
+                "§7Total: §a$" + Money.format(Math.round(unit * Math.min(10, max) * 100.0) / 100.0),
+                "§7Instant buy"));
+        inv.setItem(21, makeItem(Material.ORANGE_STAINED_GLASS_PANE, "§6§lBuy 25",
+                "§7Total: §a$" + Money.format(Math.round(unit * Math.min(25, max) * 100.0) / 100.0),
+                "§7Instant buy"));
+        inv.setItem(23, makeItem(Material.MAGENTA_STAINED_GLASS_PANE, "§d§lBuy 50",
+                "§7Total: §a$" + Money.format(Math.round(unit * Math.min(50, max) * 100.0) / 100.0),
+                "§7Instant buy"));
 
         switching.add(player.getUniqueId());
         player.openInventory(inv);
@@ -324,6 +333,12 @@ public class ShopManager implements Listener {
             player.sendMessage("§cNot enough money! Need $" + Money.format(total));
         }
         openBuyGui(player, pending.material, pending.amount, pending.unitOverride, pending.product);
+    }
+
+    /** Instant-buy pane: buys a fixed bulk amount (clamped to max stack). */
+    private void buyBulk(Player player, PendingBuy pending, int preset) {
+        int amount = Math.max(1, Math.min(preset, Math.max(1, pending.material.getMaxStackSize())));
+        confirmBuy(player, new PendingBuy(pending.material, amount, pending.unitOverride, pending.product));
     }
 
     private void openSearch(Player player) {
@@ -934,6 +949,9 @@ public class ShopManager implements Listener {
                 case 14 -> openBuyGui(player, pending.material,
                         pending.amount + (event.isShiftClick() ? 10 : 1));
                 case 16 -> confirmBuy(player, pending);
+                case 19 -> buyBulk(player, pending, 10);
+                case 21 -> buyBulk(player, pending, 25);
+                case 23 -> buyBulk(player, pending, 50);
                 default -> {
                 }
             }

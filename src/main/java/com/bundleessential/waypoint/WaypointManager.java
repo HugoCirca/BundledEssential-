@@ -165,6 +165,7 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
             Material wool = woolColors[index % woolColors.length];
             ItemStack item = createItem(wool, "§a" + entry.getKey(),
                 "§7Click to teleport",
+                "§7Shift-click to delete",
                 "§7Location: §f" + formatLocation(entry.getValue().getLocation()));
             gui.setItem(index, item);
             index++;
@@ -195,9 +196,14 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
             Map<String, Waypoint> playerWaypoints = waypoints.getOrDefault(uuid, new HashMap<>());
 
             if (playerWaypoints.containsKey(name)) {
-                player.closeInventory();
-                player.teleport(playerWaypoints.get(name).getLocation());
-                player.sendMessage("§aTeleported to waypoint §e" + name + "§a!");
+                if (event.isShiftClick()) {
+                    deleteWaypoint(player, name);
+                    openWaypointGUI(player);
+                } else {
+                    player.closeInventory();
+                    player.teleport(playerWaypoints.get(name).getLocation());
+                    player.sendMessage("§aTeleported to waypoint §e" + name + "§a!");
+                }
             }
         }
     }

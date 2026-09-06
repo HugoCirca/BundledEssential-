@@ -18,6 +18,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
 | **Auto-Sell** | `/autosell` (chest in `/shop` Custom tab) |
 | **Spawner** | _(stackable zombie spawner in `/shop` Custom tab)_ |
+| **Chunkloaders** | `/chunkload`, `/chunkdelete`, `/showchunk` |
 | **Leveling** | `/level` |
 | **Quests & Daily** | `/quest`, `/daily` |
 | **Playtime** | `/playtime` |
@@ -122,7 +123,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - **Misc** — Auto-filled with every item not in another category, so nothing is ever missing
 - **Custom** — Auto-Sell Chest + Zombie Spawner (barrier icon, bottom-right), see below
 - **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page. No anvil? Use `/shop search <name>` instead (works everywhere, incl. Bedrock)
-- **Bulk buying** — Click any stackable item, then the red/green panes to pick 1-64 (shift-click = 10 at a time), confirm to buy the stack. Unstackables (tools/weapons) still buy instantly
+- **Bulk buying** — Click any stackable item, then the red/green panes to pick 1-64 (shift-click = 10 at a time), confirm to buy the stack. Yellow/orange/pink panes instant-buy 10/25/50. Unstackables (tools/weapons) still buy instantly
 
 #### Dynamic Pricing
 - Prices drift ±5-10% every 5 minutes
@@ -183,6 +184,18 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - **Login streak** — `/daily` claims it manually each day: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850). Missing one day freezes the streak (no gain, no reset); missing more resets it
 - Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
 - Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)
+
+### Chunkloaders
+
+| Command | Description |
+|---------|-------------|
+| `/chunkload [name]` | Force-load the chunk you stand in (free, max 3) |
+| `/chunkdelete <name>` | Remove one of your chunkloaders |
+| `/showchunk [name]` | Outline your loaded chunks + list them |
+
+- Loaders keep their chunk ticking (farms, hoppers, spawners all run), even while you are offline. No upkeep, no fees
+- Loaders re-apply automatically after every restart (force-loads don't survive one)
+- Deleting only unforces a chunk nobody else still loads
 
 ### Dynamic Light
 
@@ -261,7 +274,7 @@ Just push to `main` and a new release is created.
 
 Toggle every feature in `plugins/BundledEssential/features.yml` (tpa, home, back,
 waypoints, trade, economy, bounty, pay, shop, sell, leveling, rewards, autosell,
-spawner, playtime, dynamic-light, updater) — set `false` and restart to disable.
+spawner, chunkload, playtime, dynamic-light, updater) — set `false` and restart to disable.
 Fine-tuning values stay in `config.yml` (leveling rates, light interval,
 `rewards.login` streak payouts, `rewards.daily` multiplier, `autosell` chest price,
 `spawner` price, playtime base rewards under `economy:`).
@@ -275,6 +288,7 @@ All player data is stored automatically in:
 - `plugins/BundledEssential/rewards.json` - Quest progress, login streaks, anti-farm block list
 - `plugins/BundledEssential/autosell.json` - Auto-sell chest locations + configs
 - `plugins/BundledEssential/spawner.json` - Boosted spawner locations + rates
+- `plugins/BundledEssential/chunkloaders.json` - Named chunkloader claims
 - `plugins/BundledEssential/shop.json` - Shop price overrides (delete to reset to defaults)
 
 No manual configuration needed.

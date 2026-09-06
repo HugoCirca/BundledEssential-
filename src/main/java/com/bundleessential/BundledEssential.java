@@ -2,6 +2,7 @@ package com.bundleessential;
 
 import com.bundleessential.autosell.AutoSellManager;
 import com.bundleessential.back.BackManager;
+import com.bundleessential.chunkload.ChunkLoadManager;
 import com.bundleessential.economy.BalanceManager;
 import com.bundleessential.economy.BountyManager;
 import com.bundleessential.economy.PriceManager;
@@ -45,6 +46,7 @@ public class BundledEssential extends JavaPlugin {
     private RewardManager rewardManager;
     private AutoSellManager autosellManager;
     private SpawnerManager spawnerManager;
+    private ChunkLoadManager chunkloadManager;
     private PlaytimeManager playtimeManager;
     private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
@@ -98,6 +100,9 @@ public class BundledEssential extends JavaPlugin {
             if (features.isEnabled("spawner")) {
                 spawnerManager = new SpawnerManager(this);
             }
+            if (features.isEnabled("chunkload")) {
+                chunkloadManager = new ChunkLoadManager(this);
+            }
             if (features.isEnabled("playtime")) {
                 playtimeManager = new PlaytimeManager(this);
             }
@@ -144,6 +149,9 @@ public class BundledEssential extends JavaPlugin {
         }
         if (spawnerManager != null) {
             spawnerManager.saveAll();
+        }
+        if (chunkloadManager != null) {
+            chunkloadManager.saveAll();
         }
         if (playtimeManager != null) {
             playtimeManager.savePlaytime();
@@ -266,6 +274,11 @@ public class BundledEssential extends JavaPlugin {
         }
         if (autosellManager != null) {
             getCommand("autosell").setExecutor(autosellManager);
+        }
+        if (chunkloadManager != null) {
+            getCommand("chunkload").setExecutor(chunkloadManager);
+            getCommand("chunkdelete").setExecutor(chunkloadManager);
+            getCommand("showchunk").setExecutor(chunkloadManager);
         }
         if (playtimeManager != null) {
             getCommand("playtime").setExecutor(playtimeManager);

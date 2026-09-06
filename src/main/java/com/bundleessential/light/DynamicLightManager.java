@@ -7,7 +7,10 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.type.Light;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockFromToEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -153,6 +156,33 @@ public class DynamicLightManager implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         clear(event.getPlayer().getUniqueId());
+    }
+
+    /**
+     * Light blocks are real blocks: a bucket aimed at one fails to place its
+     * liquid, and spreading liquid stops at them. Yield in both cases — the next
+     * refresh simply won't re-place light into liquid.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        try {
+            if (event.getBlockClicked() == null || event.getBlockFace() == null) {
+                return;
+            }
+            Block target = event.getBlockClicked().getRelative(event.getBlockFace());
+            if (target.getType() == Material.LIGHT) {
+                target.setType(Material.AIR, false);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onLiquidFlow(BlockFromToEvent event) {
+        try {
+            if (event.getToBlock().getType() == Material.LIGHT) {
+                event.getToBlock().setType(Material.AIR, false);
+            }
+        } catch (Exception ignored) {}
     }
 
     public void removeAll() {

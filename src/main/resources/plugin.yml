@@ -90,6 +90,15 @@ commands:
   autosell:
     description: Auto-sell chest help and admin give
     usage: /autosell [give <player> [amount]]
+  chunkload:
+    description: Force-load the chunk you stand in
+    usage: /chunkload [name]
+  chunkdelete:
+    description: Remove one of your chunkloaders
+    usage: /chunkdelete <name>
+  showchunk:
+    description: Highlight your loaded chunks
+    usage: /showchunk [name]
   playtime:
     description: Check playtime or view the leaderboard
     usage: /playtime [leaderboard|<player>]
