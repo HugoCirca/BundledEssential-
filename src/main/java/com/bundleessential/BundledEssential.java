@@ -2,7 +2,6 @@ package com.bundleessential;
 
 import com.bundleessential.autosell.AutoSellManager;
 import com.bundleessential.back.BackManager;
-import com.bundleessential.chunkload.ChunkLoadManager;
 import com.bundleessential.economy.BalanceManager;
 import com.bundleessential.economy.BountyManager;
 import com.bundleessential.economy.PriceManager;
@@ -47,7 +46,6 @@ public class BundledEssential extends JavaPlugin {
     private RewardManager rewardManager;
     private AutoSellManager autosellManager;
     private SpawnerManager spawnerManager;
-    private ChunkLoadManager chunkloadManager;
     private GiveawayManager giveawayManager;
     private PlaytimeManager playtimeManager;
     private DynamicLightManager dynamicLightManager;
@@ -102,9 +100,6 @@ public class BundledEssential extends JavaPlugin {
             if (features.isEnabled("spawner")) {
                 spawnerManager = new SpawnerManager(this);
             }
-            if (features.isEnabled("chunkload")) {
-                chunkloadManager = new ChunkLoadManager(this, balanceManager);
-            }
             if (balanceManager != null) {
                 giveawayManager = new GiveawayManager(balanceManager);
             }
@@ -155,9 +150,6 @@ public class BundledEssential extends JavaPlugin {
         if (spawnerManager != null) {
             spawnerManager.saveAll();
         }
-        if (chunkloadManager != null) {
-            chunkloadManager.saveAll();
-        }
         if (playtimeManager != null) {
             playtimeManager.savePlaytime();
         }
@@ -170,21 +162,25 @@ public class BundledEssential extends JavaPlugin {
     private void registerCommands() {
         if (tpaManager != null) {
             getCommand("tpa").setExecutor(tpaManager);
+            getCommand("tpa").setTabCompleter(tpaManager);
             getCommand("tpaccept").setExecutor(tpaManager);
             getCommand("tpahere").setExecutor(tpaManager);
-            getCommand("tpaautoaccept").setExecutor(tpaManager);
-            getCommand("tpaautocancel").setExecutor(tpaManager);
+            getCommand("tpahere").setTabCompleter(tpaManager);
+            getCommand("tpaauto").setExecutor(tpaManager);
+            getCommand("tpaauto").setTabCompleter(tpaManager);
         }
         if (homeManager != null) {
             getCommand("sethome").setExecutor(homeManager);
             getCommand("removehome").setExecutor(homeManager);
             getCommand("home").setExecutor(homeManager);
+            getCommand("home").setTabCompleter(homeManager);
         }
         if (backManager != null) {
             getCommand("back").setExecutor(backManager);
         }
         if (tradeManager != null) {
             getCommand("trade").setExecutor(tradeManager);
+            getCommand("trade").setTabCompleter(tradeManager);
             getCommand("tradeaccept").setExecutor(tradeManager);
             getCommand("tradecancel").setExecutor(tradeManager);
         }
@@ -208,6 +204,13 @@ public class BundledEssential extends JavaPlugin {
                 }
                 return true;
             });
+            getCommand("shop").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) s.add("search");
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                return s;
+            });
         }
         if (sellManager != null) {
             getCommand("sell").setExecutor(sellManager);
@@ -215,13 +218,47 @@ public class BundledEssential extends JavaPlugin {
         }
         if (bountyManager != null && features.isEnabled("pay")) {
             getCommand("pay").setExecutor(bountyManager);
+            getCommand("pay").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) {
+                    for (Player pl : Bukkit.getOnlinePlayers()) {
+                        if (sender instanceof Player self && pl.equals(self)) continue;
+                        s.add(pl.getName());
+                    }
+                } else if (args.length == 2) {
+                    s.add("<amount>");
+                }
+                String last = args[args.length - 1].toLowerCase();
+                s.removeIf(x -> x.startsWith("<") ? false : !x.toLowerCase().startsWith(last));
+                return s;
+            });
             getCommand("paytax").setExecutor(bountyManager);
         }
         if (bountyManager != null && features.isEnabled("bounty")) {
             getCommand("bounty").setExecutor(bountyManager);
+            getCommand("bounty").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) {
+                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+                } else if (args.length == 2) {
+                    s.add("<amount>");
+                }
+                String last = args[args.length - 1].toLowerCase();
+                s.removeIf(x -> x.startsWith("<") ? false : !x.toLowerCase().startsWith(last));
+                return s;
+            });
         }
         if (balanceManager != null) {
             getCommand("balance").setExecutor(balanceManager);
+            getCommand("balance").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) {
+                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+                }
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                return s;
+            });
             getCommand("repair").setExecutor((sender, command, label, args) -> {
                 if (!(sender instanceof Player player)) {
                     sender.sendMessage("§cOnly players can use this command!");
@@ -273,24 +310,111 @@ public class BundledEssential extends JavaPlugin {
         }
         if (levelManager != null) {
             getCommand("level").setExecutor(levelManager);
+            getCommand("level").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) {
+                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+                }
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                return s;
+            });
         }
         if (rewardManager != null) {
             getCommand("quest").setExecutor(rewardManager);
+            getCommand("quest").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) {
+                    s.add("claim");
+                    s.add("skip");
+                }
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                return s;
+            });
             getCommand("daily").setExecutor(rewardManager);
         }
         if (autosellManager != null) {
             getCommand("autosell").setExecutor(autosellManager);
-        }
-        if (chunkloadManager != null) {
-            getCommand("chunkload").setExecutor(chunkloadManager);
-            getCommand("chunkdelete").setExecutor(chunkloadManager);
-            getCommand("showchunk").setExecutor(chunkloadManager);
+            getCommand("autosell").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) s.add("give");
+                else if (args.length == 2 && args[0].equalsIgnoreCase("give")) {
+                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+                } else if (args.length == 3 && args[0].equalsIgnoreCase("give")) {
+                    s.add("<amount>");
+                }
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> x.startsWith("<") ? false : !x.toLowerCase().startsWith(last));
+                return s;
+            });
         }
         if (giveawayManager != null) {
             getCommand("giveaway").setExecutor(giveawayManager);
+            getCommand("giveaway").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) s.add("<amount>");
+                else if (args.length == 2) {
+                    s.add("all");
+                    s.add("<count>");
+                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+                }
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> x.startsWith("<") ? false : !x.toLowerCase().startsWith(last));
+                return s;
+            });
         }
         if (playtimeManager != null) {
-            getCommand("playtime").setExecutor(playtimeManager);
+            getCommand("playtime").setExecutor((sender, command, label, args) -> {
+                if (args.length >= 1 && sender instanceof Player p) {
+                    String sub = args[0].toLowerCase();
+                    if (sub.equals("optout") || sub.equals("opt-out") || sub.equals("out")) {
+                        if (balanceManager != null && balanceManager.isPlaytimeOptOut(p.getUniqueId())) {
+                            p.sendMessage("§eAlready opted out. Vault: §a$"
+                                    + Money.format(balanceManager.getPlaytimeVault(p.getUniqueId())));
+                            return true;
+                        }
+                        if (balanceManager != null) {
+                            balanceManager.setPlaytimeOptOut(p, true);
+                            p.sendMessage("§ePlaytime pay §copted OUT§e. Earnings go silently to your vault. §6/playtime optin §eto claim.");
+                        }
+                        return true;
+                    }
+                    if (sub.equals("optin") || sub.equals("opt-in") || sub.equals("in")) {
+                        if (balanceManager != null) {
+                            double claimed = balanceManager.setPlaytimeOptOut(p, false);
+                            if (claimed > 0) {
+                                p.sendMessage("§aOpted IN! Claimed vault §e$" + Money.format(claimed));
+                            } else {
+                                p.sendMessage("§aOpted IN! No vaulted earnings.");
+                            }
+                        }
+                        return true;
+                    }
+                    if (sub.equals("vault")) {
+                        if (balanceManager != null) {
+                            p.sendMessage("§6Vault: §a$" + Money.format(balanceManager.getPlaytimeVault(p.getUniqueId()))
+                                    + " §7(" + (balanceManager.isPlaytimeOptOut(p.getUniqueId()) ? "opted out" : "opted in") + ")");
+                        }
+                        return true;
+                    }
+                }
+                return playtimeManager.onCommand(sender, command, label, args);
+            });
+            getCommand("playtime").setTabCompleter((sender, cmd, alias, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) {
+                    s.add("leaderboard");
+                    s.add("top");
+                    s.add("optin");
+                    s.add("optout");
+                    s.add("vault");
+                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+                }
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                return s;
+            });
         }
         if (updateManager != null) {
             getCommand("bundledupdate").setExecutor(updateManager);
@@ -300,6 +424,46 @@ public class BundledEssential extends JavaPlugin {
             sender.sendMessage("§6§lBundledEssential §e v" + getDescription().getVersion());
             return true;
         });
+        // Consolidated hub: /be help|version|update (old roots still work)
+        try {
+            if (getCommand("be") != null) {
+                getCommand("be").setExecutor((sender, command, label, args) -> {
+                    if (args.length == 0) {
+                        sender.sendMessage("§cUsage: /be <help|version|update>");
+                        return true;
+                    }
+                    String sub = args[0].toLowerCase();
+                    if (sub.equals("help")) {
+                        return helpManager.onCommand(sender, getCommand("bundledhelp"), "bundledhelp", new String[0]);
+                    }
+                    if (sub.equals("version")) {
+                        sender.sendMessage("§6§lBundledEssential §e v" + getDescription().getVersion());
+                        return true;
+                    }
+                    if (sub.equals("update")) {
+                        if (updateManager != null) {
+                            return updateManager.onCommand(sender, getCommand("bundledupdate"), "bundledupdate",
+                                    args.length > 1 ? java.util.Arrays.copyOfRange(args, 1, args.length) : new String[0]);
+                        }
+                        sender.sendMessage("§cUpdater is disabled!");
+                        return true;
+                    }
+                    sender.sendMessage("§cUsage: /be <help|version|update>");
+                    return true;
+                });
+                getCommand("be").setTabCompleter((sender, cmd, alias, args) -> {
+                    java.util.List<String> s = new java.util.ArrayList<>();
+                    if (args.length == 1) {
+                        s.add("help");
+                        s.add("version");
+                        s.add("update");
+                    }
+                    String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                    s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                    return s;
+                });
+            }
+        } catch (Exception ignored) {}
     }
 
     public static BundledEssential getInstance() {

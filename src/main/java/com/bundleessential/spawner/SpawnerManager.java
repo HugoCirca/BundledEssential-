@@ -42,15 +42,17 @@ import java.util.Random;
 import java.util.UUID;
 
 /**
- * Second Custom-category item: stackable zombie spawner ($500).
- * Place it for a normal 1x zombie spawner labeled "Zombie 1x". Right-click it
- * holding another spawner item to consume it and raise the rate, up to 35x.
- * Rate scales by spawning (mult - 1) bonus zombies per natural spawner cycle.
+ * Custom-category stackable spawners: zombie ($250) + skeleton ($500).
+ * Place for a normal 1x spawner labeled "Zombie 1x" / "Skeleton 1x".
+ * Right-click it holding another spawner item of the SAME type to consume
+ * it and raise the rate, up to 35x. Mine with iron+ pickaxe to keep it.
+ * Rate scales by spawning (mult - 1) bonus mobs per natural spawner cycle.
  */
 public class SpawnerManager implements Listener {
 
     private static final long SAVE_INTERVAL_TICKS = 6000L;
-    private static final double DEF_PRICE = 500.0;
+    private static final double DEF_ZOMBIE_PRICE = 250.0;
+    private static final double DEF_SKELETON_PRICE = 500.0;
     private static final int DEF_MAX_MULT = 35;
 
     private final JavaPlugin plugin;
@@ -76,20 +78,41 @@ public class SpawnerManager implements Listener {
         return new NamespacedKey(plugin, "spawn-mult");
     }
 
-    /** Shop template: 1x marker, no stored multiplier. */
+    public static NamespacedKey typeKey(JavaPlugin plugin) {
+        return new NamespacedKey(plugin, "spawn-type");
+    }
+
+    /** Shop template: 1x marker, no stored multiplier. Legacy = zombie. */
     public static ItemStack template(JavaPlugin plugin) {
+        return template(plugin, EntityType.ZOMBIE);
+    }
+
+    public static ItemStack template(JavaPlugin plugin, EntityType type) {
+        boolean skeleton = type == EntityType.SKELETON;
         ItemStack item = new ItemStack(Material.SPAWNER);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName("§a§lZombie Spawner");
+        meta.setDisplayName(skeleton ? "§f§lSkeleton Spawner" : "§a§lZombie Spawner");
         List<String> lore = new ArrayList<>();
         lore.add("§7Place for a 1x spawner anywhere");
-        lore.add("§7Right-click a wild zombie");
+        lore.add(skeleton ? "§7Right-click a wild skeleton" : "§7Right-click a wild zombie");
         lore.add("§7spawner to boost it to 35x");
         lore.add("§7Whole held stack feeds at once");
+        lore.add("§7Mine with iron+ pickaxe to keep");
         meta.setLore(lore);
         meta.getPersistentDataContainer().set(tagKey(plugin), PersistentDataType.BYTE, (byte) 1);
+        meta.getPersistentDataContainer().set(typeKey(plugin), PersistentDataType.STRING,
+                skeleton ? "SKELETON" : "ZOMBIE");
         item.setItemMeta(meta);
         return item;
+    }
+
+    public static EntityType typeOf(JavaPlugin plugin, ItemStack item) {
+        try {
+            String s = item.getItemMeta().getPersistentDataContainer()
+                    .get(typeKey(plugin), PersistentDataType.STRING);
+            if ("SKELETON".equalsIgnoreCase(s)) return EntityType.SKELETON;
+        } catch (Exception ignored) {}
+        return EntityType.ZOMBIE;
     }
 
     public static boolean isSpawnerItem(JavaPlugin plugin, ItemStack item) {
@@ -117,7 +140,11 @@ public class SpawnerManager implements Listener {
 
     /** Break return: keeps its multiplier so relocating never loses progress. */
     public static ItemStack tagged(JavaPlugin plugin, int mult) {
-        ItemStack item = template(plugin);
+        return tagged(plugin, mult, EntityType.ZOMBIE);
+    }
+
+    public static ItemStack tagged(JavaPlugin plugin, int mult, EntityType type) {
+        ItemStack item = template(plugin, type);
         ItemMeta meta = item.getItemMeta();
         meta.getPersistentDataContainer()
                 .set(multKey(plugin), PersistentDataType.INTEGER, Math.max(1, mult));
@@ -128,11 +155,28 @@ public class SpawnerManager implements Listener {
     // ---------- config ----------
 
     public double spawnerPrice() {
+        return zombiePrice();
+    }
+
+    public double zombiePrice() {
         try {
-            double p = plugin.getConfig().getDouble("spawner.price", DEF_PRICE);
-            return p > 0 ? Math.round(p * 100.0) / 100.0 : DEF_PRICE;
+            if (plugin.getConfig().contains("spawner.zombie-price")) {
+                double p = plugin.getConfig().getDouble("spawner.zombie-price", DEF_ZOMBIE_PRICE);
+                return p > 0 ? Math.round(p * 100.0) / 100.0 : DEF_ZOMBIE_PRICE;
+            }
+            double p = plugin.getConfig().getDouble("spawner.price", DEF_ZOMBIE_PRICE);
+            return p > 0 ? Math.round(p * 100.0) / 100.0 : DEF_ZOMBIE_PRICE;
         } catch (Exception e) {
-            return DEF_PRICE;
+            return DEF_ZOMBIE_PRICE;
+        }
+    }
+
+    public double skeletonPrice() {
+        try {
+            double p = plugin.getConfig().getDouble("spawner.skeleton-price", DEF_SKELETON_PRICE);
+            return p > 0 ? Math.round(p * 100.0) / 100.0 : DEF_SKELETON_PRICE;
+        } catch (Exception e) {
+            return DEF_SKELETON_PRICE;
         }
     }
 
@@ -202,11 +246,20 @@ public class SpawnerManager implements Listener {
 
     // ---------- hologram label ----------
 
-    private static String label(int mult) {
+    private static String label(int mult, EntityType type) {
+        if (type == EntityType.SKELETON) return "§f§lSkeleton " + mult + "x";
         return "§a§lZombie " + mult + "x";
     }
 
-    private ArmorStand ensureHologram(String key, Block block, int mult) {
+    private static EntityType typeOf(JsonObject e) {
+        try {
+            String s = e.get("type").getAsString();
+            if ("SKELETON".equalsIgnoreCase(s)) return EntityType.SKELETON;
+        } catch (Exception ignored) {}
+        return EntityType.ZOMBIE;
+    }
+
+    private ArmorStand ensureHologram(String key, Block block, int mult, EntityType type) {
         JsonObject e = spawners().getAsJsonObject(key);
         ArmorStand stand = null;
         try {
@@ -233,7 +286,7 @@ public class SpawnerManager implements Listener {
             stand.setCustomNameVisible(true);
             e.addProperty("stand", stand.getUniqueId().toString());
         }
-        stand.setCustomName(label(mult));
+        stand.setCustomName(label(mult, typeOf(e)));
         return stand;
     }
 
@@ -276,7 +329,8 @@ public class SpawnerManager implements Listener {
                 if (!(block.getState() instanceof CreatureSpawner)) {
                     continue;
                 }
-                ensureHologram(en.getKey(), block, multOf(en.getValue().getAsJsonObject()));
+                JsonObject je = en.getValue().getAsJsonObject();
+                ensureHologram(en.getKey(), block, multOf(je), typeOf(je));
             } catch (Exception ignored) {}
         }
     }
@@ -294,7 +348,8 @@ public class SpawnerManager implements Listener {
         if (!(state instanceof CreatureSpawner spawner)) {
             return;
         }
-        spawner.setSpawnedType(EntityType.ZOMBIE);
+        EntityType type = typeOf(plugin, hand);
+        spawner.setSpawnedType(type);
         try {
             spawner.update();
         } catch (Exception ignored) {}
@@ -302,11 +357,13 @@ public class SpawnerManager implements Listener {
         String key = locKey(block);
         JsonObject e = new JsonObject();
         e.addProperty("mult", mult);
+        e.addProperty("type", type == EntityType.SKELETON ? "SKELETON" : "ZOMBIE");
         spawners().add(key, e);
-        ensureHologram(key, block, mult);
+        ensureHologram(key, block, mult, type);
         saveAll();
-        event.getPlayer().sendMessage("§aPlaced §lZombie " + mult + "x§a spawner!"
-                + " §7(Right-click it with another spawner to raise the rate)");
+        String nice = type == EntityType.SKELETON ? "Skeleton " : "Zombie ";
+        event.getPlayer().sendMessage("§aPlaced §l" + nice + mult + "x§a spawner!"
+                + " §7(Right-click it with another " + nice.trim().toLowerCase() + " spawner to raise the rate)");
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -326,9 +383,18 @@ public class SpawnerManager implements Listener {
         if (!isSpawnerItem(plugin, hand)) {
             return;
         }
-        if (spawner.getSpawnedType() != EntityType.ZOMBIE) {
+        EntityType handType = typeOf(plugin, hand);
+        EntityType blockType = spawner.getSpawnedType();
+        // Only same-type boosting; vanilla types (e.g. wild skeleton vs zombie item) rejected.
+        if (blockType != handType) {
             event.setCancelled(true);
-            player.sendMessage("§cOnly §azombie §cspawners can be boosted!");
+            player.sendMessage("§cType mismatch! Use a §e" + blockType.name().toLowerCase()
+                    + " §cspawner on this one (you hold " + handType.name().toLowerCase() + ").");
+            return;
+        }
+        if (blockType != EntityType.ZOMBIE && blockType != EntityType.SKELETON) {
+            event.setCancelled(true);
+            player.sendMessage("§cOnly §azombie §f/ skeleton §cspawners can be boosted!");
             return;
         }
         // Don't let vanilla place the held spawner against this one.
@@ -346,14 +412,17 @@ public class SpawnerManager implements Listener {
             int adopted = 1 + use;
             JsonObject fresh = new JsonObject();
             fresh.addProperty("mult", adopted);
+            fresh.addProperty("type", handType == EntityType.SKELETON ? "SKELETON" : "ZOMBIE");
             spawners().add(key, fresh);
-            ensureHologram(key, clicked, adopted);
+            ensureHologram(key, clicked, adopted, handType);
             hand.setAmount(hand.getAmount() - use);
             saveAll();
-            player.sendMessage("§aBoosted wild spawner to §lZombie " + adopted + "x§a! (used " + use + ")");
+            String nice = handType == EntityType.SKELETON ? "Skeleton " : "Zombie ";
+            player.sendMessage("§aBoosted wild spawner to §l" + nice + adopted + "x§a! (used " + use + ")");
             return;
         }
         int mult = multOf(e);
+        EntityType stored = typeOf(e);
         int room = maxMult() - mult;
         if (room <= 0) {
             player.sendMessage("§eThis spawner is already at max §l" + maxMult() + "x§e!");
@@ -363,9 +432,16 @@ public class SpawnerManager implements Listener {
         hand.setAmount(hand.getAmount() - use);
         int next = mult + use;
         e.addProperty("mult", next);
-        ensureHologram(key, clicked, next);
+        ensureHologram(key, clicked, next, stored);
         saveAll();
-        player.sendMessage("§a§lZombie " + next + "x§a! (used " + use + " spawner(s))");
+        String nice = stored == EntityType.SKELETON ? "Skeleton " : "Zombie ";
+        player.sendMessage("§a§l" + nice + next + "x§a! (used " + use + " spawner(s))");
+    }
+
+    private static boolean isIronPickaxeOrBetter(org.bukkit.inventory.ItemStack tool) {
+        if (tool == null) return false;
+        Material t = tool.getType();
+        return t == Material.IRON_PICKAXE || t == Material.DIAMOND_PICKAXE || t == Material.NETHERITE_PICKAXE;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -375,7 +451,15 @@ public class SpawnerManager implements Listener {
         if (e == null) {
             return;
         }
+        // Iron+ pickaxe required to keep the spawner; otherwise block the break.
+        if (event.getPlayer().getGameMode() != org.bukkit.GameMode.CREATIVE
+                && !isIronPickaxeOrBetter(event.getPlayer().getInventory().getItemInMainHand())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage("§cMine this spawner with an §firon pickaxe §cor better to keep it!");
+            return;
+        }
         int mult = multOf(e);
+        EntityType stored = typeOf(e);
         removeSpawner(key);
         saveAll();
         if (event.getPlayer().getGameMode() == org.bukkit.GameMode.CREATIVE) {
@@ -383,7 +467,7 @@ public class SpawnerManager implements Listener {
         }
         event.setDropItems(false);
         event.getBlock().getWorld().dropItemNaturally(
-                event.getBlock().getLocation().add(0.5, 0.5, 0.5), tagged(plugin, mult));
+                event.getBlock().getLocation().add(0.5, 0.5, 0.5), tagged(plugin, mult, stored));
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -423,6 +507,7 @@ public class SpawnerManager implements Listener {
         if (mult <= 1) {
             return;
         }
+        EntityType spawnType = typeOf(e);
         Location base = event.getEntity().getLocation();
         World world = base.getWorld();
         if (world == null) {
@@ -432,7 +517,7 @@ public class SpawnerManager implements Listener {
             Location at = base.clone().add(random.nextDouble() * 4.0 - 2.0, random.nextDouble() * 2.0, random.nextDouble() * 4.0 - 2.0);
             try {
                 if (at.getBlock().isPassable()) {
-                    world.spawnEntity(at, EntityType.ZOMBIE);
+                    world.spawnEntity(at, spawnType);
                 }
             } catch (Exception ignored) {}
         }

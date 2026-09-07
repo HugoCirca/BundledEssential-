@@ -6,6 +6,7 @@ import com.bundleessential.util.Money;
 import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -890,14 +891,22 @@ public class ShopManager implements Listener {
         displayMeta.setLore(displayLore);
         display.setItemMeta(displayMeta);
         inv.setItem(22, display);
-        ItemStack spawnerDisplay = SpawnerManager.template(shopPlugin);
-        ItemMeta spawnerMeta = spawnerDisplay.getItemMeta();
-        List<String> spawnerLore = new ArrayList<>(spawnerMeta.getLore());
-        spawnerLore.add("§ePrice: §a$" + Money.format(spawnerPrice()));
-        spawnerLore.add("§7Click to buy");
-        spawnerMeta.setLore(spawnerLore);
-        spawnerDisplay.setItemMeta(spawnerMeta);
-        inv.setItem(24, spawnerDisplay);
+        ItemStack zombieDisplay = SpawnerManager.template(shopPlugin, EntityType.ZOMBIE);
+        ItemMeta zombieMeta = zombieDisplay.getItemMeta();
+        List<String> zombieLore = new ArrayList<>(zombieMeta.getLore());
+        zombieLore.add("§ePrice: §a$" + Money.format(zombiePrice()));
+        zombieLore.add("§7Click to buy");
+        zombieMeta.setLore(zombieLore);
+        zombieDisplay.setItemMeta(zombieMeta);
+        inv.setItem(24, zombieDisplay);
+        ItemStack skeletonDisplay = SpawnerManager.template(shopPlugin, EntityType.SKELETON);
+        ItemMeta skeletonMeta = skeletonDisplay.getItemMeta();
+        List<String> skeletonLore = new ArrayList<>(skeletonMeta.getLore());
+        skeletonLore.add("§ePrice: §a$" + Money.format(skeletonPrice()));
+        skeletonLore.add("§7Click to buy");
+        skeletonMeta.setLore(skeletonLore);
+        skeletonDisplay.setItemMeta(skeletonMeta);
+        inv.setItem(25, skeletonDisplay);
         ItemStack glass = makeItem(Material.GRAY_STAINED_GLASS_PANE, " ");
         for (int i = 0; i < 54; i++) {
             if (inv.getItem(i) == null) inv.setItem(i, glass);
@@ -911,10 +920,31 @@ public class ShopManager implements Listener {
     }
 
     private double spawnerPrice() {
+        return zombiePrice();
+    }
+
+    private double zombiePrice() {
         try {
             Plugin plugin = getPlugin();
             if (plugin instanceof JavaPlugin jp) {
-                double p = jp.getConfig().getDouble("spawner.price", 500.0);
+                if (jp.getConfig().contains("spawner.zombie-price")) {
+                    double p = jp.getConfig().getDouble("spawner.zombie-price", 250.0);
+                    if (p > 0) return Math.round(p * 100.0) / 100.0;
+                }
+                double p = jp.getConfig().getDouble("spawner.price", 250.0);
+                if (p > 0) {
+                    return Math.round(p * 100.0) / 100.0;
+                }
+            }
+        } catch (Exception ignored) {}
+        return 250.0;
+    }
+
+    private double skeletonPrice() {
+        try {
+            Plugin plugin = getPlugin();
+            if (plugin instanceof JavaPlugin jp) {
+                double p = jp.getConfig().getDouble("spawner.skeleton-price", 500.0);
                 if (p > 0) {
                     return Math.round(p * 100.0) / 100.0;
                 }
@@ -924,8 +954,17 @@ public class ShopManager implements Listener {
     }
 
     private void openSpawnerBuyGui(Player player) {
+        openZombieBuyGui(player);
+    }
+
+    private void openZombieBuyGui(Player player) {
         JavaPlugin shopPlugin = (JavaPlugin) JavaPlugin.getProvidingPlugin(ShopManager.class);
-        openBuyGui(player, Material.SPAWNER, 1, spawnerPrice(), SpawnerManager.template(shopPlugin));
+        openBuyGui(player, Material.SPAWNER, 1, zombiePrice(), SpawnerManager.template(shopPlugin, EntityType.ZOMBIE));
+    }
+
+    private void openSkeletonBuyGui(Player player) {
+        JavaPlugin shopPlugin = (JavaPlugin) JavaPlugin.getProvidingPlugin(ShopManager.class);
+        openBuyGui(player, Material.SPAWNER, 1, skeletonPrice(), SpawnerManager.template(shopPlugin, EntityType.SKELETON));
     }
 
     @EventHandler
@@ -1042,7 +1081,12 @@ public class ShopManager implements Listener {
             }
 
             if (title.equals("§6§lCustom") && event.getSlot() == 24) {
-                openSpawnerBuyGui(player);
+                openZombieBuyGui(player);
+                return;
+            }
+
+            if (title.equals("§6§lCustom") && event.getSlot() == 25) {
+                openSkeletonBuyGui(player);
                 return;
             }
 
@@ -1079,17 +1123,8 @@ public class ShopManager implements Listener {
         if (switching.remove(player.getUniqueId())) {
             return;
         }
-        if (pendingBuys.remove(player.getUniqueId()) != null) {
-            // Closed the quantity picker with ESC -> back to where it came from
-            ShopPage back = playerPages.get(player.getUniqueId());
-            if (back == null) return;
-            if (back.category.equals("Custom")) {
-                Bukkit.getScheduler().runTask(getPlugin(), () -> openCustomShop(player));
-            } else {
-                Bukkit.getScheduler().runTask(getPlugin(), () ->
-                        openCategoryPage(player, back.category, back.materials, back.page));
-            }
-        }
+        // E / close (incl. Bedrock) = exit. Only the go-back arrow reopens.
+        pendingBuys.remove(player.getUniqueId());
     }
 
     @EventHandler

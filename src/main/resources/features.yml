@@ -15,7 +15,6 @@ leveling: true
 rewards: true
 autosell: true
 spawner: true
-chunkload: true
 playtime: true
 dynamic-light: true
 updater: true

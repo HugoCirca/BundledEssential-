@@ -1,16 +1,15 @@
 package com.bundleessential.light;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Light;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockFromToEvent;
-import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -21,15 +20,16 @@ import java.util.UUID;
 
 /**
  * Built-in dynamic lighting: held items with light properties
- * (torch, lantern, lava bucket, glowstone, end rod, ...) place a
- * real invisible Light block at the player's feet. No extra plugin needed.
- * Only AIR is ever replaced, and lights are removed on quit/disable.
+ * (torch, lantern, lava bucket, glowstone, end rod, ...) show a
+ * client-side fake Light block at the player's feet via sendBlockChange.
+ * Server blocks stay AIR, so crouch-placing, buckets, liquids and mining
+ * never break. No extra plugin needed.
  */
 public class DynamicLightManager implements Listener {
 
     private final JavaPlugin plugin;
     private final Map<Material, Integer> emission = new HashMap<>();
-    private final Map<UUID, Tracked> lights = new HashMap<>();
+    private final Map<UUID, Tracked> fakeLights = new HashMap<>();
     private final long interval;
 
     public DynamicLightManager(JavaPlugin plugin) {
@@ -98,7 +98,7 @@ public class DynamicLightManager implements Listener {
 
     private void refresh(Player player) {
         UUID id = player.getUniqueId();
-        Tracked old = lights.get(id);
+        Tracked old = fakeLights.get(id);
         World world = player.getWorld();
         int level = player.isDead() ? 0 : heldLevel(player);
 
@@ -111,27 +111,24 @@ public class DynamicLightManager implements Listener {
             return; // nothing changed
         }
 
-        clear(id);
+        clear(player);
 
         if (level <= 0) return;
 
         // Dark-room spawners: don't illuminate the farm while player stands in it.
-        // Spawners (and natural dark rooms) need low light even if player holds a torch.
         if (hasNearbySpawner(world, bx, by, bz)) return;
 
         Block at = world.getBlockAt(bx, by, bz);
-        if (at.getType() == Material.AIR) {
-            place(at, level);
-            lights.put(id, new Tracked(world.getUID(), bx, by, bz, level));
+        if (at.getType().isAir()) {
+            sendFake(player, at.getLocation(), level);
             return;
         }
 
-        // Feet occupied (e.g. tall grass zone handled as AIR, but just in case): try eye level
+        // Feet occupied: try eye level
         Block eye = player.getEyeLocation().getBlock();
-        if (eye.getWorld().equals(world) && eye.getType() == Material.AIR) {
+        if (eye.getWorld().equals(world) && eye.getType().isAir()) {
             if (hasNearbySpawner(world, eye.getX(), eye.getY(), eye.getZ())) return;
-            place(eye, level);
-            lights.put(id, new Tracked(world.getUID(), eye.getX(), eye.getY(), eye.getZ(), level));
+            sendFake(player, eye.getLocation(), level);
         }
     }
 
@@ -154,65 +151,54 @@ public class DynamicLightManager implements Listener {
         return false;
     }
 
-    private void place(Block block, int level) {
-        block.setType(Material.LIGHT, false);
+    private void sendFake(Player player, Location loc, int level) {
         try {
-            if (block.getBlockData() instanceof Light light) {
+            BlockData data = Material.LIGHT.createBlockData();
+            if (data instanceof Light light) {
                 light.setLevel(Math.max(0, Math.min(15, level)));
-                block.setBlockData(light, false);
             }
+            player.sendBlockChange(loc, data);
+            fakeLights.put(player.getUniqueId(),
+                    new Tracked(loc.getWorld().getUID(), loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), level));
+        } catch (Exception ignored) {}
+    }
+
+    private void clear(Player player) {
+        UUID id = player.getUniqueId();
+        Tracked t = fakeLights.remove(id);
+        if (t == null) return;
+        try {
+            World current = player.getWorld();
+            // If player changed world, old fake is in another world — client already dropped it.
+            if (!current.getUID().equals(t.world)) return;
+            Block real = current.getBlockAt(t.x, t.y, t.z);
+            // Server block was never changed, so just re-send real state to erase fake.
+            player.sendBlockChange(real.getLocation(), real.getBlockData());
         } catch (Exception ignored) {}
     }
 
     private void clear(UUID id) {
-        Tracked t = lights.remove(id);
-        if (t == null) return;
-        World w = Bukkit.getWorld(t.world);
-        if (w == null) return;
-        Block b = w.getBlockAt(t.x, t.y, t.z);
-        if (b.getType() == Material.LIGHT) {
-            try {
-                b.setType(Material.AIR, false);
-            } catch (Exception ignored) {}
+        Player player = Bukkit.getPlayer(id);
+        if (player != null) {
+            clear(player);
+        } else {
+            fakeLights.remove(id);
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        clear(event.getPlayer().getUniqueId());
-    }
-
-    /**
-     * Light blocks are real blocks: a bucket aimed at one fails to place its
-     * liquid, and spreading liquid stops at them. Yield in both cases — the next
-     * refresh simply won't re-place light into liquid.
-     */
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
-        try {
-            if (event.getBlockClicked() == null || event.getBlockFace() == null) {
-                return;
-            }
-            Block target = event.getBlockClicked().getRelative(event.getBlockFace());
-            if (target.getType() == Material.LIGHT) {
-                target.setType(Material.AIR, false);
-            }
-        } catch (Exception ignored) {}
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onLiquidFlow(BlockFromToEvent event) {
-        try {
-            if (event.getToBlock().getType() == Material.LIGHT) {
-                event.getToBlock().setType(Material.AIR, false);
-            }
-        } catch (Exception ignored) {}
+        // Fake blocks are per-player client-side; nothing server-side to clean.
+        fakeLights.remove(event.getPlayer().getUniqueId());
     }
 
     public void removeAll() {
-        for (UUID id : lights.keySet().toArray(new UUID[0])) {
-            clear(id);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            try {
+                clear(player);
+            } catch (Exception ignored) {}
         }
+        fakeLights.clear();
     }
 
     private static class Tracked {

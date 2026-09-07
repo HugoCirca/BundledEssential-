@@ -40,7 +40,9 @@ public class BalanceManager implements Listener, CommandExecutor {
     private final JavaPlugin plugin;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Path balancesFile;
+    private final Path playtimeOptFile;
     private final JsonObject balances = new JsonObject();
+    private final JsonObject playtimeOpt = new JsonObject();
     private final Random random = new Random();
     private BountyManager bountyManager;
     private LevelManager levelManager;
@@ -62,7 +64,9 @@ public class BalanceManager implements Listener, CommandExecutor {
     public BalanceManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.balancesFile = plugin.getDataFolder().toPath().resolve("balances.json");
+        this.playtimeOptFile = plugin.getDataFolder().toPath().resolve("playtime_opt.json");
         loadBalances();
+        loadPlaytimeOpt();
         startPlaytimeTask();
     }
 
@@ -112,6 +116,73 @@ public class BalanceManager implements Listener, CommandExecutor {
         } catch (IOException e) {
             plugin.getLogger().warning("Failed to save balances.json");
         }
+    }
+
+    private void loadPlaytimeOpt() {
+        plugin.getDataFolder().mkdirs();
+        if (Files.exists(playtimeOptFile)) {
+            try {
+                String json = new String(Files.readAllBytes(playtimeOptFile));
+                JsonObject loaded = gson.fromJson(json, JsonObject.class);
+                if (loaded != null) {
+                    loaded.entrySet().forEach(e -> playtimeOpt.add(e.getKey(), e.getValue()));
+                }
+            } catch (IOException e) {
+                plugin.getLogger().warning("Failed to load playtime_opt.json");
+            }
+        }
+    }
+
+    public void savePlaytimeOpt() {
+        try {
+            Files.write(playtimeOptFile, gson.toJson(playtimeOpt).getBytes());
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save playtime_opt.json");
+        }
+    }
+
+    private JsonObject playtimeEntry(UUID uuid) {
+        String key = uuid.toString();
+        if (!playtimeOpt.has(key) || !playtimeOpt.get(key).isJsonObject()) {
+            JsonObject e = new JsonObject();
+            e.addProperty("optOut", false);
+            e.addProperty("vault", 0.0);
+            playtimeOpt.add(key, e);
+        }
+        return playtimeOpt.getAsJsonObject(key);
+    }
+
+    public boolean isPlaytimeOptOut(UUID uuid) {
+        try {
+            return playtimeEntry(uuid).get("optOut").getAsBoolean();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public double getPlaytimeVault(UUID uuid) {
+        try {
+            return playtimeEntry(uuid).get("vault").getAsDouble();
+        } catch (Exception e) {
+            return 0.0;
+        }
+    }
+
+    /** true = silent farm to vault, false = normal pay + message. Returns vaulted total. */
+    public double setPlaytimeOptOut(Player player, boolean optOut) {
+        JsonObject e = playtimeEntry(player.getUniqueId());
+        e.addProperty("optOut", optOut);
+        savePlaytimeOpt();
+        if (!optOut) {
+            double vault = getPlaytimeVault(player.getUniqueId());
+            if (vault > 0) {
+                e.addProperty("vault", 0.0);
+                savePlaytimeOpt();
+                addBalance(player, vault);
+                return vault;
+            }
+        }
+        return 0.0;
     }
 
     private String getBalanceKey(Player player) {
@@ -182,6 +253,14 @@ public class BalanceManager implements Listener, CommandExecutor {
                         reward = Math.round(reward * mult * 100.0) / 100.0;
                     }
                     if (bountyManager != null) reward = bountyManager.garnish(player, reward);
+                    if (isPlaytimeOptOut(player.getUniqueId())) {
+                        JsonObject e = playtimeEntry(player.getUniqueId());
+                        double vault = getPlaytimeVault(player.getUniqueId()) + reward;
+                        vault = Math.round(vault * 100.0) / 100.0;
+                        e.addProperty("vault", vault);
+                        savePlaytimeOpt();
+                        continue; // silent farm, no message
+                    }
                     addBalance(player, reward);
                     if (level > 1) {
                         player.sendMessage("§a[Playtime] §e+$" + Money.format(reward) + " §7(Lv " + level + " bonus +" + (int) Math.round((mult - 1.0) * 100) + "%)");
@@ -201,8 +280,6 @@ public class BalanceManager implements Listener, CommandExecutor {
         obj.setDisplaySlot(DisplaySlot.SIDEBAR);
         hideSidebarNumbers(obj);
 
-        Score line1 = obj.getScore("=============");
-        line1.setScore(3);
         Score line2 = obj.getScore("§fMoney: §a$" + Money.format(getBalance(player)));
         line2.setScore(2);
         Score line3 = obj.getScore(" ");

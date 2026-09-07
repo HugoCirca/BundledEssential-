@@ -5,17 +5,20 @@ import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class HomeManager implements CommandExecutor {
+public class HomeManager implements CommandExecutor, TabCompleter {
 
     private final BundledEssential plugin;
     private final Map<UUID, Location> homes = new HashMap<>();
@@ -43,12 +46,36 @@ public class HomeManager implements CommandExecutor {
             return true;
         }
 
-        switch (command.getName().toLowerCase()) {
+        String cmd = command.getName().toLowerCase();
+        if (cmd.equals("home") && args.length >= 1) {
+            String sub = args[0].toLowerCase();
+            if (sub.equals("set")) {
+                setHome(player);
+                return true;
+            }
+            if (sub.equals("remove") || sub.equals("delete")) {
+                removeHome(player);
+                return true;
+            }
+        }
+        switch (cmd) {
             case "sethome" -> setHome(player);
             case "removehome" -> removeHome(player);
             case "home" -> teleportHome(player);
         }
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> out = new ArrayList<>();
+        if (command.getName().equalsIgnoreCase("home") && args.length == 1) {
+            out.add("set");
+            out.add("remove");
+        }
+        String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+        out.removeIf(s -> !s.toLowerCase().startsWith(last));
+        return out;
     }
 
     private void setHome(Player player) {

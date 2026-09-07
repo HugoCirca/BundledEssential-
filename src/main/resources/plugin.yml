@@ -8,20 +8,17 @@ softdepend: []
 
 commands:
   tpa:
-    description: Send a teleportation request to a player
-    usage: /tpa <player>
+    description: Send a teleportation request or use subcommands
+    usage: /tpa <player|here <player>|accept|auto [on|off]>
   tpaccept:
     description: Accept a pending teleportation request
     usage: /tpaccept
   tpahere:
     description: Send a request for a player to teleport to you
     usage: /tpahere <player>
-  tpaautoaccept:
+  tpaauto:
     description: Toggle instant auto-accept of teleport requests
-    usage: /tpaautoaccept [on|off]
-  tpaautocancel:
-    description: Toggle instant auto-cancel of teleport requests
-    usage: /tpaautocancel [on|off]
+    usage: /tpaauto [on|off]
   sethome:
     description: Set your home location
     usage: /sethome
@@ -29,8 +26,8 @@ commands:
     description: Remove your home
     usage: /removehome
   home:
-    description: Teleport to your home
-    usage: /home
+    description: Teleport home or manage it
+    usage: /home [set|remove]
   back:
     description: Return to your last death location
     usage: /back
@@ -38,8 +35,8 @@ commands:
     description: Manage waypoints
     usage: /waypoint [new|delete|name]
   trade:
-    description: Send a trade request to a player
-    usage: /trade <player>
+    description: Send a trade request or accept/cancel
+    usage: /trade <player|accept|cancel>
   tradeaccept:
     description: Accept a pending trade request
     usage: /tradeaccept
@@ -58,6 +55,10 @@ commands:
   bundledhelp:
     description: Show all available commands
     usage: /bundledhelp
+  be:
+    description: Consolidated hub for help/version/update
+    usage: /be <help|version|update>
+    aliases: [bundle]
   balance:
     description: Check your balance or another player's balance
     usage: /balance [player]
@@ -93,18 +94,9 @@ commands:
   autosell:
     description: Auto-sell chest help and admin give
     usage: /autosell [give <player> [amount]]
-  chunkload:
-    description: Force-load the chunk you stand in
-    usage: /chunkload [name]
-  chunkdelete:
-    description: Remove one of your chunkloaders
-    usage: /chunkdelete <name>
-  showchunk:
-    description: Highlight your loaded chunks
-    usage: /showchunk [name]
   giveaway:
     description: Console giveaway — give money to random winners
     usage: /giveaway <amount> [count|all|<player>]
   playtime:
-    description: Check playtime or view the leaderboard
-    usage: /playtime [leaderboard|<player>]
+    description: Check playtime, leaderboard, or opt vault
+    usage: /playtime [leaderboard|top|optin|optout|vault|<player>]

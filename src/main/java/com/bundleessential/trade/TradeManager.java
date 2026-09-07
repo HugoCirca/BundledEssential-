@@ -7,6 +7,7 @@ import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -27,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public class TradeManager implements CommandExecutor, Listener {
+public class TradeManager implements CommandExecutor, TabCompleter, Listener {
 
     private final BundledEssential plugin;
     private final Map<UUID, UUID> pendingTrades = new HashMap<>();
@@ -56,10 +57,22 @@ public class TradeManager implements CommandExecutor, Listener {
             return true;
         }
 
-        switch (command.getName().toLowerCase()) {
+        String cmd = command.getName().toLowerCase();
+        if (cmd.equals("trade") && args.length >= 1) {
+            String sub = args[0].toLowerCase();
+            if (sub.equals("accept")) {
+                handleTradeAccept(player);
+                return true;
+            }
+            if (sub.equals("cancel")) {
+                handleTradeCancel(player);
+                return true;
+            }
+        }
+        switch (cmd) {
             case "trade" -> {
                 if (args.length != 1) {
-                    player.sendMessage("§cUsage: /trade <player>");
+                    player.sendMessage("§cUsage: /trade <player> | /trade accept | /trade cancel");
                     return true;
                 }
                 handleTrade(player, args[0]);
@@ -68,6 +81,24 @@ public class TradeManager implements CommandExecutor, Listener {
             case "tradecancel" -> handleTradeCancel(player);
         }
         return true;
+    }
+
+    @Override
+    public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        if (command.getName().equalsIgnoreCase("trade")) {
+            if (args.length == 1) {
+                out.add("accept");
+                out.add("cancel");
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    if (sender instanceof Player self && p.equals(self)) continue;
+                    out.add(p.getName());
+                }
+            }
+        }
+        String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+        out.removeIf(s -> !s.toLowerCase().startsWith(last));
+        return out;
     }
 
     private void handleTrade(Player sender, String targetName) {

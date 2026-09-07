@@ -34,10 +34,6 @@ dynamic-light:
   interval-ticks: 10
   spawner-freeze-radius: 16
 
-# Chunkloaders (/chunkload) — named force-loaded chunks, 3 free per player.
-chunkload:
-  upgrade-price: 10.0
-
 # Auto-sell chest (Custom category) — sells chest contents on a timer, split equally.
 # Configure: right-click air holding it (interval + recipients).
 # Reconfigure placed one: sneak + right-click it. Hoppers feed it normally.
@@ -47,8 +43,10 @@ autosell:
   intervals: [30, 60, 300, 600]
   max-recipients: 5
 
-# Stackable zombie spawner (Custom category) — right-click a placed one with
-# another spawner item to raise its rate, up to max-multiplier.
+# Stackable spawners (Custom category) — right-click a placed one with
+# another spawner item of the same type to raise its rate, up to max-multiplier.
+# Mine with iron+ pickaxe to keep it.
 spawner:
-  price: 500.0
+  zombie-price: 250.0
+  skeleton-price: 500.0
   max-multiplier: 35
