@@ -120,4 +120,4 @@ commands:
   bundledreload:
     description: Reload config.yml and features.yml (console friendly)
     usage: /bundledreload
-    aliases: [bereload, bereloadconfig]
+    aliases: [bereload, bereloadconfig, knapsackreload]

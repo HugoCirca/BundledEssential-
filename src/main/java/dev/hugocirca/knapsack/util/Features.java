@@ -17,6 +17,11 @@ public class Features {
     }
 
     public boolean isEnabled(String feature) {
-        return config.getBoolean(feature, true);
+        return config.getBoolean(feature, false);
+    }
+
+    public boolean hasAnyEnabled() {
+        for (String key : config.getKeys(false)) if (config.getBoolean(key, false)) return true;
+        return false;
     }
 }

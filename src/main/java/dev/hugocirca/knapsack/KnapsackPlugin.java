@@ -61,6 +61,31 @@ public class KnapsackPlugin extends JavaPlugin {
 
         dataStorage = new DataStorage(this);
         features = new Features(this);
+        if (!features.hasAnyEnabled()) {
+            getLogger().warning("All features are disabled — edit plugins/Knapsack/features.yml and enable what you need, then /knapsackreload or restart.");
+            // also nudge admins on join (once per start)
+            getServer().getPluginManager().registerEvents(new org.bukkit.event.Listener() {
+                private final java.util.Set<java.util.UUID> nagged = new java.util.HashSet<>();
+                @org.bukkit.event.EventHandler
+                public void onJoin(org.bukkit.event.player.PlayerJoinEvent e) {
+                    if (!features.hasAnyEnabled() && !nagged.contains(e.getPlayer().getUniqueId())
+                            && (e.getPlayer().isOp() || e.getPlayer().hasPermission("knapsack.admin"))) {
+                        nagged.add(e.getPlayer().getUniqueId());
+                        e.getPlayer().sendMessage("§6[Knapsack] §eAll features are disabled. §7Edit §fplugins/Knapsack/features.yml §7and turn on what you need, then §a/knapsackreload §7or restart.");
+                    }
+                }
+            }, this);
+            // immediate for already-online ops (reload case)
+            getServer().getScheduler().runTaskLater(this, () -> {
+                if (!features.hasAnyEnabled()) {
+                    for (org.bukkit.entity.Player p : Bukkit.getOnlinePlayers()) {
+                        if (p.isOp() || p.hasPermission("knapsack.admin")) {
+                            p.sendMessage("§6[Knapsack] §eAll features are disabled. §7Edit §fplugins/Knapsack/features.yml §7and enable needed features, then §a/knapsackreload§7.");
+                        }
+                    }
+                }
+            }, 60L);
+        }
 
         if (features.isEnabled("tpa")) {
             tpaManager = new TpaManager(this);

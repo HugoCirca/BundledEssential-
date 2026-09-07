@@ -1,20 +1,20 @@
 # Knapsack Features
 # Set any feature to false to disable it, then restart the server.
 
-tpa: true
-home: true
-back: true
-waypoints: true
-trade: true
-economy: true
-bounty: true
-pay: true
-shop: true
-sell: true
-leveling: true
-rewards: true
-autosell: true
-spawner: true
-playtime: true
-dynamic-light: true
-updater: true
+tpa: false
+home: false
+back: false
+waypoints: false
+trade: false
+economy: false
+bounty: false
+pay: false
+shop: false
+sell: false
+leveling: false
+rewards: false
+autosell: false
+spawner: false
+playtime: false
+dynamic-light: false
+updater: false
