@@ -14,12 +14,14 @@ commands:
     description: Send a request for a player to teleport to you
     usage: /tpahere <player>
   sethome:
-    description: Set your home location (alias to /home set)
+    description: Set your home location
     usage: /sethome
-    aliases: [sh]
+  removehome:
+    description: Remove your home
+    usage: /removehome
   home:
-    description: Teleport home or manage it — GUI or /home set
-    usage: /home [set]
+    description: Teleport home or manage it
+    usage: /home [set|remove]
   back:
     description: Return to your last death location
     usage: /back
@@ -41,6 +43,7 @@ commands:
   bundledhelp:
     description: Show all available commands
     usage: /bundledhelp
+    aliases: [KShelp, kshelp]
   be:
     description: Consolidated hub for help/version/update
     usage: /be <help|version|update>

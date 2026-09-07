@@ -47,6 +47,7 @@ public final class CommandRegistry {
         }
         if (home != null) {
             plugin.getCommand("sethome").setExecutor(home);
+            plugin.getCommand("removehome").setExecutor(home);
             plugin.getCommand("home").setExecutor(home);
             plugin.getCommand("home").setTabCompleter(home);
         }

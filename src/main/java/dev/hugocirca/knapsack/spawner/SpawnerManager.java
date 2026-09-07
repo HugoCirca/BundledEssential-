@@ -44,7 +44,7 @@ import java.util.Random;
 import java.util.UUID;
 
 /**
- * Custom-category stackable spawners: zombie ($250) + skeleton ($500).
+ * Custom-category stackable spawners: zombie ($250) + skeleton ($325).
  * Place for a normal 1x spawner labeled "Zombie 1x" / "Skeleton 1x".
  * Right-click it holding another spawner item of the SAME type to consume
  * it and raise the rate, up to 35x. Mine with iron+ pickaxe to keep it.
@@ -54,7 +54,7 @@ public class SpawnerManager implements Listener, Saveable {
 
     private static final long SAVE_INTERVAL_TICKS = 6000L;
     private static final double DEF_ZOMBIE_PRICE = 250.0;
-    private static final double DEF_SKELETON_PRICE = 500.0;
+    private static final double DEF_SKELETON_PRICE = 325.0;
     private static final int DEF_MAX_MULT = 35;
 
     private final JavaPlugin plugin;

@@ -51,5 +51,5 @@ autosell:
 # Mine with iron+ pickaxe to keep it.
 spawner:
   zombie-price: 250.0
-  skeleton-price: 500.0
+  skeleton-price: 325.0
   max-multiplier: 35

@@ -501,13 +501,13 @@ public class ShopManager implements Listener {
         try {
             Plugin plugin = getPlugin();
             if (plugin instanceof JavaPlugin jp) {
-                double p = jp.getConfig().getDouble("spawner.skeleton-price", 500.0);
+                double p = jp.getConfig().getDouble("spawner.skeleton-price", 325.0);
                 if (p > 0) {
                     return Math.round(p * 100.0) / 100.0;
                 }
             }
         } catch (Exception ignored) {}
-        return 500.0;
+        return 325.0;
     }
 
     private void openSpawnerBuyGui(Player player) {
