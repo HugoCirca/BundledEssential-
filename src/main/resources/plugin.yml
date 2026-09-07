@@ -1,9 +1,9 @@
-name: BundledEssential
+name: Knapsack
 version: '${version}'
-main: com.bundleessential.BundledEssential
+main: dev.hugocirca.knapsack.KnapsackPlugin
 api-version: '1.13'
-description: Low resource bundled essentials plugin
-author: BundleEssential
+description: Low resource knapsack essentials plugin
+author: HugoCirca
 softdepend: []
 
 commands:

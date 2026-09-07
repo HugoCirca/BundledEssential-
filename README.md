@@ -1,4 +1,4 @@
-# BundledEssential
+# Knapsack
 
 A lightweight, low-resource Minecraft plugin that bundles essential teleportation, location, and economy commands into one jar. No external dependencies required.
 
@@ -43,7 +43,7 @@ Each page is curated for that module (tabs, limits, files, config keys).
 
 ## Installation
 
-1. Download `BundledEssential-X.X.X.jar` from [Releases](https://github.com/HugoCirca/BundledEssential-/releases)
+1. Download `Knapsack-X.X.X.jar` from [Releases](https://github.com/HugoCirca/Knapsack/releases)
 2. Place in `plugins/` folder
 3. Restart
 
@@ -55,8 +55,8 @@ The plugin self-updates via `/bundledupdate`.
 
 Requires **Java 17+** and **Gradle**.
 ```bash
-git clone https://github.com/HugoCirca/BundledEssential-.git
-cd BundledEssential-
+git clone https://github.com/HugoCirca/Knapsack.git
+cd Knapsack
 ./gradlew clean build
 ```
 Jar in `build/libs/`.
@@ -67,13 +67,13 @@ Jar in `build/libs/`.
 
 Toggle in `features.yml`, tuning in `config.yml` (`economy.balance-cap`, `autosell.*`, etc.). Details: [Configuration](wiki/Configuration.md). Live reload: `/bundledreload` (also `bereload`).
 
-Data files in `plugins/BundledEssential/` — see wiki.
+Data files in `plugins/Knapsack/` — see wiki.
 
 ---
 
 ## Permissions
 
-Open by default. Restrict via `bundleessential.*` — see [Permissions](wiki/Permissions.md).
+Open by default. Restrict via `knapsack.*` — see [Permissions](wiki/Permissions.md).
 
 ---
 
