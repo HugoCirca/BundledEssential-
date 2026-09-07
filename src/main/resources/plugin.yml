@@ -8,17 +8,11 @@ softdepend: []
 
 commands:
   tpa:
-    description: Send a teleportation request or use subcommands
-    usage: /tpa <player|here <player>|accept|auto [on|off]>
-  tpaccept:
-    description: Accept a pending teleportation request
-    usage: /tpaccept
+    description: Send a teleportation request or open requests GUI
+    usage: /tpa <player|here <player>>
   tpahere:
     description: Send a request for a player to teleport to you
     usage: /tpahere <player>
-  tpaauto:
-    description: Toggle instant auto-accept of teleport requests
-    usage: /tpaauto [on|off]
   sethome:
     description: Set your home location
     usage: /sethome

@@ -42,11 +42,8 @@ public final class CommandRegistry {
         if (tpa != null) {
             plugin.getCommand("tpa").setExecutor(tpa);
             plugin.getCommand("tpa").setTabCompleter(tpa);
-            plugin.getCommand("tpaccept").setExecutor(tpa);
             plugin.getCommand("tpahere").setExecutor(tpa);
             plugin.getCommand("tpahere").setTabCompleter(tpa);
-            plugin.getCommand("tpaauto").setExecutor(tpa);
-            plugin.getCommand("tpaauto").setTabCompleter(tpa);
         }
         if (home != null) {
             plugin.getCommand("sethome").setExecutor(home);
