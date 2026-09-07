@@ -12,6 +12,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -83,34 +84,95 @@ public class SellManager implements CommandExecutor, Listener {
         String title = event.getView().getTitle();
         if (!title.equals(SELL_GUI_TITLE)) return;
 
+        // Always cancel by default, then allow only safe actions
         event.setCancelled(true);
 
         ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
-        if (clicked.getType() == Material.EMERALD_BLOCK) return;
+        ItemStack cursor = event.getCursor();
+        ClickType click = event.getClick();
 
-        // Shift-click: sell all of that item type from player inventory
-        if (event.getClick() == ClickType.SHIFT_LEFT || event.getClick() == ClickType.SHIFT_RIGHT) {
+        // Block dangerous clicks that could dupe: number key, swap offhand, drop, etc. are already cancelled above
+        if (click == ClickType.NUMBER_KEY || click == ClickType.SWAP_OFFHAND || click == ClickType.DROP || click == ClickType.CONTROL_DROP || click == ClickType.DOUBLE_CLICK) {
+            return;
+        }
+
+        // Clicking info block does nothing
+        if (clicked != null && clicked.getType() == Material.EMERALD_BLOCK) return;
+        if (cursor != null && cursor.getType() == Material.EMERALD_BLOCK) return;
+
+        // Shift-click on item in sell GUI: sell all of that type from player inventory (not GUI)
+        if ((click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT) && clicked != null && clicked.getType() != Material.AIR) {
+            // count includes enchanted variants? Use type match only for now
             int count = 0;
             for (ItemStack invItem : player.getInventory().getContents()) {
                 if (invItem != null && invItem.getType() == clicked.getType()) {
                     count += invItem.getAmount();
                 }
             }
+            // also check offhand and armor? leggings might be equipped? Include armor
+            for (ItemStack invItem : player.getInventory().getArmorContents()) {
+                if (invItem != null && invItem.getType() == clicked.getType()) count += invItem.getAmount();
+            }
+            ItemStack off = player.getInventory().getItemInOffHand();
+            if (off != null && off.getType() == clicked.getType()) count += off.getAmount();
+
             if (count > 0) {
-                double priceEach = priceManager.getSellPriceWithEnchants(new ItemStack(clicked.getType()));
-                double total = Math.round(priceEach * count * 100.0) / 100.0;
+                // Use actual items' prices (with enchants) for accurate total - sum each stack's price
+                double total = 0;
+                for (ItemStack invItem : player.getInventory().getContents()) {
+                    if (invItem != null && invItem.getType() == clicked.getType()) {
+                        total += priceManager.getSellPriceWithEnchants(invItem) * invItem.getAmount();
+                    }
+                }
+                for (ItemStack invItem : player.getInventory().getArmorContents()) {
+                    if (invItem != null && invItem.getType() == clicked.getType()) total += priceManager.getSellPriceWithEnchants(invItem) * invItem.getAmount();
+                }
+                if (off != null && off.getType() == clicked.getType()) total += priceManager.getSellPriceWithEnchants(off) * off.getAmount();
+                total = Math.round(total * 100.0) / 100.0;
+                // remove from all inventories
                 player.getInventory().removeItem(new ItemStack(clicked.getType(), count));
-                balanceManager.addBalance(player, total);
-                player.sendMessage("§aSold §e" + count + "x " + formatMaterialName(clicked.getType()) + " §afor §e$" + Money.format(total));
+                // also need to clear armor/offhand if they held it - removeItem above handles main, but armor needs manual
+                // For armor leggings specifically, remove from armor if present
+                ItemStack[] armor = player.getInventory().getArmorContents();
+                for (int i=0;i<armor.length;i++) if (armor[i]!=null && armor[i].getType()==clicked.getType()) armor[i]=null;
+                player.getInventory().setArmorContents(armor);
+                if (off != null && off.getType() == clicked.getType()) player.getInventory().setItemInOffHand(null);
+                if (total > 0) {
+                    balanceManager.addBalance(player, total);
+                    player.sendMessage("§aSold §e" + count + "x " + formatMaterialName(clicked.getType()) + " §afor §e$" + Money.format(total));
+                }
+                player.updateInventory();
             }
             return;
         }
 
-        // Normal click: allow placing items into the sell GUI
-        if (event.getSlot() != 49) {
+        // Normal placement: allow placing cursor into empty sell slot, or picking back
+        int slot = event.getSlot();
+        int raw = event.getRawSlot();
+        boolean inTop = raw < event.getView().getTopInventory().getSize();
+        if (inTop) {
+            if (slot == 49) return; // info slot
+            // Allow pick up and place within sell GUI
+            if (click == ClickType.LEFT || click == ClickType.RIGHT || click == ClickType.MIDDLE) {
+                event.setCancelled(false);
+            }
+        } else {
+            // Click in bottom (player inv) while sell GUI open: allow normal pickup, but shift is already handled
             event.setCancelled(false);
         }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        if (!event.getView().getTitle().equals(SELL_GUI_TITLE)) return;
+        // Only allow drags that stay within player inv or within sell GUI, not cross
+        // For safety, cancel any drag that touches sell GUI top slots that would place
+        // Check if any raw slot is in top inventory and is 49 (info)
+        for (int raw : event.getRawSlots()) {
+            if (raw == 49) { event.setCancelled(true); return; }
+        }
+        // allow otherwise but compact will handle; don't cancel to allow placing multiple
     }
 
     @EventHandler
@@ -140,6 +202,14 @@ public class SellManager implements CommandExecutor, Listener {
             balanceManager.addBalance(player, totalEarned);
             player.sendMessage("§aSold §e" + totalItems + " items §afor §e$" + Money.format(totalEarned) + "§a!");
         }
+        // Fix dupe: clear GUI and cursor so items don't return to player after credit
+        inventory.clear();
+        // also clear cursor if it holds a sellable item that was counted
+        ItemStack cursor = event.getView().getCursor();
+        if (cursor != null && cursor.getType() != Material.AIR && cursor.getType() != Material.EMERALD_BLOCK) {
+            event.getView().setCursor(null);
+        }
+        player.updateInventory();
     }
 
     private String formatMaterialName(Material material) {

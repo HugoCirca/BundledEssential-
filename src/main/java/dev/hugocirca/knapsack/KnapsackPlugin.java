@@ -23,6 +23,7 @@ import dev.hugocirca.knapsack.util.DataStorage;
 import dev.hugocirca.knapsack.util.Features;
 import dev.hugocirca.knapsack.util.HelpManager;
 import dev.hugocirca.knapsack.util.Money;
+import dev.hugocirca.knapsack.util.WaterBucketStackManager;
 import dev.hugocirca.knapsack.waypoint.WaypointManager;
 import dev.hugocirca.knapsack.commands.CommandRegistry;
 import org.bukkit.Bukkit;
@@ -159,6 +160,8 @@ public class KnapsackPlugin extends JavaPlugin {
         if (sellManager != null) Bukkit.getPluginManager().registerEvents(sellManager, this);
         if (tradeManager != null) Bukkit.getPluginManager().registerEvents(tradeManager, this);
         if (dynamicLightManager != null) Bukkit.getPluginManager().registerEvents(dynamicLightManager, this);
+        // water buckets 16-stack (always on, low overhead)
+        new WaterBucketStackManager(this);
 
         registerCommands();
         if (updateManager != null) updateManager.startup();
