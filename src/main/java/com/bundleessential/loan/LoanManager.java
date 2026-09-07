@@ -181,6 +181,18 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener {
             inv.setItem(slots[i], make(Material.BEDROCK, "§e$" + amt, "§7Click to borrow §a$" + amt, "§7Then pick repayment"));
         }
         inv.setItem(22, make(Material.COMPASS, "§bCustom Amount", "§7Open anvil to type amount", "§750 - 10000"));
+        // pending loans as paper to click-pay
+        List<JsonObject> pending = playerLoans(player.getUniqueId());
+        int pSlot = 18;
+        for (JsonObject o : pending) {
+            if (pSlot > 25) break;
+            String id = o.get("id").getAsString();
+            double debt = o.get("debt").getAsDouble();
+            String mode = o.get("mode").getAsString();
+            long due = o.get("due").getAsLong();
+            String dueStr = mode.equals("SLOW") ? "slow 20%" : (due < System.currentTimeMillis() ? "§cOVERDUE" : ((due - System.currentTimeMillis())/86400000) + "d left");
+            inv.setItem(pSlot++, make(Material.PAPER, "§e" + id + " §f$" + Money.format(debt), "§7" + mode + " " + dueStr, "§aClick to pay (+$25 if on time)"));
+        }
         inv.setItem(26, make(Material.BARRIER, "§cClose", "§7Your debt: §c$" + Money.format(totalDebt(player.getUniqueId()))));
         player.openInventory(inv);
     }
@@ -192,8 +204,7 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener {
         for (int i=0;i<27;i++) inv.setItem(i, filler);
         inv.setItem(10, make(Material.CLOCK, "§e3 Days", "§7Lump pay in 3 days", "§7Overdue +5%/day, can go negative"));
         inv.setItem(11, make(Material.CLOCK, "§e7 Days", "§7Lump pay in 7 days"));
-        inv.setItem(12, make(Material.CLOCK, "§e14 Days", "§7Lump pay in 14 days"));
-        inv.setItem(13, make(Material.CLOCK, "§e30 Days", "§7Lump pay in 30 days"));
+        inv.setItem(12, make(Material.CLOCK, "§e14 Days", "§7Lump pay in 14 days (max)", "§72 weeks max"));
         inv.setItem(16, make(Material.HOPPER, "§aSlow Deduct", "§720% of earnings auto-pay", "§7No due date, no late fee"));
         inv.setItem(22, make(Material.EMERALD, "§aBorrow §e$" + amount, "§7Pick a repayment plan above"));
         player.openInventory(inv);
@@ -230,6 +241,13 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener {
         ItemStack cur = e.getCurrentItem();
         if (cur == null || cur.getType() == Material.AIR || cur.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
         if (amt) {
+            if (cur.getType() == Material.PAPER) {
+                String id = cur.getItemMeta().getDisplayName().replaceAll("§.", "").split(" ")[0].trim();
+                // paper pay
+                player.closeInventory();
+                payOne(player, id);
+                return;
+            }
             if (cur.getType() == Material.BEDROCK) {
                 String name = cur.getItemMeta().getDisplayName();
                 int val = Integer.parseInt(name.replaceAll("[^0-9]", ""));
@@ -268,8 +286,9 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener {
         saveAll();
         balance.addBalance(player, amount);
         pendingAmt.remove(player.getUniqueId());
-        if (mode.equals("SLOW")) player.sendMessage("§aLoan §e$" + amount + " §agiven! Slow deduct 20% of earnings until paid. §7/loan info | /loan pay");
-        else player.sendMessage("§aLoan §e$" + amount + " §agiven! Due in §e" + days + "d§a. §7/loan pay [id] §7to repay (+$25 bonus if on time)");
+        String id = loan.get("id").getAsString();
+        if (mode.equals("SLOW")) player.sendMessage("§aLoan §e$" + amount + " §agiven! ID §e" + id + " §a— Slow deduct 20% of earnings until paid. §7/loan pay " + id);
+        else player.sendMessage("§aLoan §e$" + amount + " §agiven! ID §e" + id + " §aDue in §e" + days + "d§a. §7/loan pay " + id + " §7to repay (+$25 bonus if on time)");
     }
 
     private void payOne(Player player, String id) {

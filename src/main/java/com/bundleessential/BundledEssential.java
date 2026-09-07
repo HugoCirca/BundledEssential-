@@ -261,13 +261,54 @@ public class BundledEssential extends JavaPlugin {
             getCommand("balance").setTabCompleter(balanceManager);
             getCommand("resetbal").setExecutor(balanceManager);
             getCommand("resetbal").setTabCompleter(balanceManager);
+            getCommand("resetserverbal").setExecutor((sender, cmd, alias, args) -> {
+                if (!sender.isOp() && !sender.hasPermission("bundleessential.admin")) {
+                    sender.sendMessage("§cNo permission.");
+                    return true;
+                }
+                balanceManager.resetServerBank();
+                sender.sendMessage("§aServer Bank reset to §e$0 §7(history cleared).");
+                Bukkit.broadcastMessage("§6[Bank] §eServer Bank was reset by " + sender.getName());
+                return true;
+            });
             getCommand("serverbank").setExecutor((sender, cmd, alias, args) -> {
+                if (args.length >= 1 && args[0].equalsIgnoreCase("history")) {
+                    if (sender instanceof Player player) {
+                        org.bukkit.inventory.ItemStack book = balanceManager.historyBook();
+                        if (player.getInventory().firstEmpty() == -1) {
+                            player.getWorld().dropItemNaturally(player.getLocation(), book);
+                            player.sendMessage("§eInventory full — history book dropped!");
+                        } else {
+                            player.getInventory().addItem(book);
+                            player.sendMessage("§aOpened Server Bank history book!");
+                        }
+                    } else {
+                        sender.sendMessage("§6§lServer Bank: §a$" + Money.format(balanceManager.getServerBank()) + " §7(" + balanceManager.getBankHistory().size() + " txns)");
+                        int shown = 0;
+                        for (int i = balanceManager.getBankHistory().size() - 1; i >= 0 && shown < 10; i--) {
+                            com.google.gson.JsonObject e = balanceManager.getBankHistory().get(i);
+                            String t = new java.text.SimpleDateFormat("MM-dd HH:mm").format(new java.util.Date(e.get("time").getAsLong()));
+                            sender.sendMessage(" " + t + " " + e.get("player").getAsString() + " $" + Money.format(e.get("amount").getAsDouble()) + " " + e.get("reason").getAsString());
+                            shown++;
+                        }
+                    }
+                    return true;
+                }
                 sender.sendMessage("§6§lServer Bank: §a$" + Money.format(balanceManager.getServerBank()));
+                sender.sendMessage("§7History: §e/serverbank history §7(book, also works for console)");
                 if (sender.isOp() || sender.hasPermission("bundleessential.admin")) {
                     sender.sendMessage("§7Cap: §e$" + Money.format(balanceManager.getCapPublic()));
                     sender.sendMessage("§7Overflow + garnish + bounty/pay taxes feed the bank. Config: economy.balance-cap");
+                    sender.sendMessage("§7Random interest: 30% every 20 min, 0.2-0.5% of bank (max $5000) → online");
                 }
                 return true;
+            });
+            getCommand("serverbank").setTabCompleter((sender, c, a, args) -> {
+                java.util.List<String> s = new java.util.ArrayList<>();
+                if (args.length == 1) s.add("history");
+                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+                s.removeIf(x -> !x.toLowerCase().startsWith(last));
+                return s;
             });
             getCommand("repair").setExecutor((sender, command, label, args) -> {
                 if (!(sender instanceof Player player)) {

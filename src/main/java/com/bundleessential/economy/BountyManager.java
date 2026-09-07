@@ -124,7 +124,7 @@ public class BountyManager implements CommandExecutor {
             unpaidTaxes.remove(player.getUniqueId());
             taxSince.remove(player.getUniqueId());
             lastTaxTime.put(player.getUniqueId(), System.currentTimeMillis());
-            balanceManager.addServerBank(owed);
+            balanceManager.addServerBank(owed, player.getName(), "paytax");
             player.sendMessage("§aYou paid §e$" + Money.format(owed) + " §ain taxes to the Server Bank! You're clear. §7(Bank: $" + Money.format(balanceManager.getServerBank()) + ")");
         } else {
             player.sendMessage("§cNot enough money! You owe §e$" + Money.format(owed) + "§c in taxes.");
@@ -220,7 +220,7 @@ public class BountyManager implements CommandExecutor {
         } else {
             unpaidTaxes.put(player.getUniqueId(), left);
         }
-        balanceManager.addServerBank(cut);
+        balanceManager.addServerBank(cut, player.getName(), "garnish 25%");
         player.sendMessage("§c[Taxes] §e$" + com.bundleessential.util.Money.format(cut) + " §cseized for unpaid taxes → Server Bank! §7(/paytax)");
         return Math.round((amount - cut) * 100.0) / 100.0;
     }

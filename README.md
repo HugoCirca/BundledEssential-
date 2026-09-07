@@ -27,7 +27,7 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 - **Auto-updater** — Checks for updates on startup, downloads and applies on next restart (console can use `/bundledupdate` too)
 - **Dynamic Pricing** — Shop prices drift based on market simulation and inflation
-- **Server Bank** — Taxes + overflow beyond `economy.balance-cap` feed the bank (near-U64 unlimited)
+- **Server Bank** — Taxes + overflow beyond `economy.balance-cap` feed the bank (capped at 2B, reset via `/resetserverbal`)
 
 ---
 
@@ -101,7 +101,9 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/balance` | Check your balance |
 | `/balance <player>` | Check another player's balance (also offline) |
 | `/resetbal <player> [amount]` | **Admin** reset/set balance (clamped to cap, negatives allowed for loans) |
-| `/serverbank` | Show Server Bank (tax + overflow beyond cap) |
+| `/serverbank` | Show Server Bank |
+| `/serverbank history` | History book (time/player/amount/reason, console prints last 10) |
+| `/resetserverbal` | **Admin** wipe Bank to $0 (`resetbank` alias) |
 | `/loan` | Open loan GUI (see Loans) |
 | `/pay <player> <amount>` | Pay a player (5% tax → Bank, garnished if overdue) |
 | `/bounty <player> [amount]` | Set or check a bounty (20% tax → Bank on claim) |
@@ -113,17 +115,17 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 - Per-player cap is `economy.balance-cap` in `config.yml` (default `1,000,000,000,000` = 1T — add zeros to taste, reload via `/bundledreload`)
 - `balance` is clamped on save/load; overflow from any earning (`/sell`, playtime, kills, quests, autosell) → Bank
 - All taxes: `/pay` 5% and bounty 20% (immediate to Bank), `garnish` 25% of playtime/kills when in tax debt → Bank, `/paytax` → Bank
-- Bank is in `serverbank.json`, effectively unlimited until unsigned 64-bit max (`18446744073709551615`), then capped with warning
+- Bank is in `serverbank.json`, capped at **2B** (`/resetserverbal` wipes, `/serverbank history` book)
 - E at cap sees "Capped!" and earnings feed Bank
 
 #### Loans (`LoanManager`)
 | Command | Description |
 |---------|-------------|
-| `/loan` | Chest GUI — bedrock `200/500/1000/1500/2000/2500` + compass custom (anvil 50-10000) → pick repayment |
+| `/loan` | Chest GUI — bedrock `200/500/1000/1500/2000/2500` + compass custom (anvil 50-10000) → pick repayment (max 14d). Pending loans show as **paper** click-to-pay |
 | `/loan pay [id|all]` | Repay lump loan early (on-time +$25 bonus, overdue no bonus, can go negative) |
 | `/loan info` | List active loans (id, debt, mode, due) |
 
-- Repay modes: **3/7/14/30 days lump** (must `/loan pay` before due) or **Slow Deduct** (20% of each earning auto-pays, no due date)
+- Repay modes: **3/7/14 days lump** (max 2 weeks, must `/loan pay` or paper click before due) or **Slow Deduct** (20% of each earning auto-pays, no due date)
 - Late lump: +5%/day compound, adds to `debt`; `/loan pay` can go negative as punishment
 - Slow fully paid → +$25 bonus; cap total debt $10000 per player
 - Data: `loans.json`

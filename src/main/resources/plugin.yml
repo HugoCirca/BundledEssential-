@@ -67,7 +67,7 @@ commands:
     usage: /resetbal <player> [amount]
   serverbank:
     description: Show the Server Bank (tax + capped overflow)
-    usage: /serverbank
+    usage: /serverbank [history]
   sell:
     description: Sell the item in your main hand
     usage: /sell
@@ -109,6 +109,10 @@ commands:
   loan:
     description: Borrow money via GUI and repay
     usage: /loan [pay [id|all]|info]
+  resetserverbal:
+    description: Admin wipe Server Bank to 0
+    usage: /resetserverbal
+    aliases: [resetbank, resetserverbank]
   bundledreload:
     description: Reload config.yml and features.yml (console friendly)
     usage: /bundledreload

@@ -4,8 +4,11 @@ import com.bundleessential.level.LevelManager;
 import com.bundleessential.util.Money;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -15,6 +18,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -29,9 +34,14 @@ import org.bukkit.scoreboard.*;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -77,6 +87,7 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
         loadPlaytimeOpt();
         loadServerBank();
         startPlaytimeTask();
+        startInterestTask();
     }
 
     public void setBountyManager(BountyManager bountyManager) {
@@ -162,6 +173,19 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
                 String json = new String(Files.readAllBytes(serverBankFile));
                 JsonObject obj = gson.fromJson(json, JsonObject.class);
                 if (obj != null && obj.has("balance")) serverBank = Math.max(0, obj.get("balance").getAsDouble());
+                if (obj != null && obj.has("history") && obj.get("history").isJsonArray()) {
+                    history.clear();
+                    for (JsonElement el : obj.getAsJsonArray("history")) if (el.isJsonObject()) history.add(el.getAsJsonObject());
+                    // cap history to 500
+                    while (history.size() > 500) history.remove(0);
+                }
+                // reset requested: cap is now 2B, wipe if over cap (huge old balances)
+                if (serverBank > BANK_CAP) {
+                    plugin.getLogger().info("Server Bank " + serverBank + " exceeds new 2B cap — resetting to 0 and clearing history.");
+                    serverBank = 0;
+                    history.clear();
+                    saveServerBank();
+                }
             } catch (Exception e) {
                 plugin.getLogger().warning("Failed to load serverbank.json");
             }
@@ -170,9 +194,11 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
 
     public double getServerBank() { return Math.round(serverBank * 100.0) / 100.0; }
 
-    private static final double BANK_CAP = 18446744073709551615.0; // U64 max, effectively unlimited
+    private static final double BANK_CAP = 2_000_000_000.0; // 2B cap (reset)
+    private final List<JsonObject> history = new ArrayList<>();
 
-    public void addServerBank(double amount) {
+    public void addServerBank(double amount) { addServerBank(amount, "SYSTEM", "unknown"); }
+    public void addServerBank(double amount, String player, String reason) {
         if (amount <= 0) return;
         double next = serverBank + amount;
         if (next >= BANK_CAP || !Double.isFinite(next)) {
@@ -181,6 +207,14 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
         } else {
             serverBank = Math.round(next * 100.0) / 100.0;
         }
+        JsonObject entry = new JsonObject();
+        entry.addProperty("time", System.currentTimeMillis());
+        entry.addProperty("player", player == null ? "SYSTEM" : player);
+        entry.addProperty("amount", Math.round(amount * 100.0) / 100.0);
+        entry.addProperty("reason", reason);
+        entry.addProperty("bankAfter", getServerBank());
+        history.add(entry);
+        while (history.size() > 500) history.remove(0);
         saveServerBank();
     }
 
@@ -188,10 +222,57 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
         try {
             JsonObject obj = new JsonObject();
             obj.addProperty("balance", Math.round(serverBank * 100.0) / 100.0);
+            JsonArray arr = new JsonArray();
+            for (JsonObject e : history) arr.add(e);
+            obj.add("history", arr);
             Files.write(serverBankFile, gson.toJson(obj).getBytes());
         } catch (IOException e) {
             plugin.getLogger().warning("Failed to save serverbank.json");
         }
+    }
+
+    public void resetServerBank() {
+        serverBank = 0;
+        history.clear();
+        saveServerBank();
+    }
+
+    public List<JsonObject> getBankHistory() { return new ArrayList<>(history); }
+
+    public ItemStack historyBook() {
+        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+        BookMeta meta = (BookMeta) book.getItemMeta();
+        meta.setTitle("§6Server Bank History");
+        meta.setAuthor("Bank");
+        List<String> pages = new ArrayList<>();
+        SimpleDateFormat fmt = new SimpleDateFormat("MM-dd HH:mm");
+        if (history.isEmpty()) {
+            pages.add("§4§lServer Bank\n§0No transactions yet.\n\n§0Balance: $" + Money.format(getServerBank()));
+        } else {
+            StringBuilder cur = new StringBuilder("§4§lServer Bank §0$" + Money.format(getServerBank()) + "\n\n");
+            int count = 0;
+            for (int i = history.size() - 1; i >= 0; i--) {
+                JsonObject e = history.get(i);
+                String t = fmt.format(new Date(e.get("time").getAsLong()));
+                String who = e.has("player") ? e.get("player").getAsString() : "?";
+                String rsn = e.has("reason") ? e.get("reason").getAsString() : "?";
+                String amt = Money.format(e.get("amount").getAsDouble());
+                String line = "§0" + t + " §1" + who + " §a$" + amt + " §7" + rsn + "\n";
+                if (cur.length() + line.length() > 240) {
+                    pages.add(cur.toString());
+                    cur = new StringBuilder();
+                }
+                cur.append(line);
+                count++;
+                if (count >= 80) break; // cap 80 most recent
+                if (pages.size() >= 12) break;
+            }
+            if (cur.length() > 0) pages.add(cur.toString());
+        }
+        if (pages.isEmpty()) pages.add("§0Empty");
+        meta.setPages(pages);
+        book.setItemMeta(meta);
+        return book;
     }
 
     public void saveBalances() {
@@ -315,13 +396,13 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
             next = c;
         }
         if (overflow > 0) {
-            addServerBank(Math.round(overflow * 100.0) / 100.0);
+            addServerBank(Math.round(overflow * 100.0) / 100.0, player.getName(), "cap overflow");
             player.sendMessage("§6[Bank] §eCapped at §a$" + Money.format(c) + "§e! §a$" + Money.format(overflow) + " §7went to the Server Bank.");
         }
         if (amount > 0 && next <= cur && overflow <= 0) {
             // already at cap with no overflow? still cap msg
             player.sendMessage("§cBalance capped at §e$" + Money.format(c) + "§c — earnings now feed the Server Bank!");
-            addServerBank(Math.round(amount * 100.0) / 100.0);
+            addServerBank(Math.round(amount * 100.0) / 100.0, player.getName(), "cap feed");
             return;
         }
         addBalance(player.getUniqueId(), amount, false);
@@ -349,7 +430,9 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
         balances.addProperty(key, next);
         saveBalances();
         if (mayBank && overflow > 0) {
-            addServerBank(Math.round(overflow * 100.0) / 100.0);
+            String pname = "SYSTEM";
+            try { pname = Bukkit.getOfflinePlayer(uuid).getName(); if (pname==null) pname=uuid.toString().substring(0,8); } catch (Exception ignored) {}
+            addServerBank(Math.round(overflow * 100.0) / 100.0, pname, "cap overflow");
             Player p = Bukkit.getPlayer(uuid);
             if (p != null) p.sendMessage("§6[Bank] §a$" + Money.format(overflow) + " §7overflow went to the Server Bank (cap $" + Money.format(c) + ").");
         } else if (overflow > 0) {
@@ -446,6 +529,54 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
             saveBalances();
         }
         updateScoreboard(player);
+    }
+
+    private void startInterestTask() {
+        // Every ~20 min, 30% chance Bank pays interest to online players
+        new BukkitRunnable() {
+            @Override public void run() {
+                try {
+                    if (serverBank < 1000 || Bukkit.getOnlinePlayers().isEmpty()) return;
+                    if (random.nextDouble() > 0.30) return; // 30% chance
+                    double pct = 0.002 + random.nextDouble() * 0.003; // 0.2% - 0.5%
+                    double payout = Math.round(serverBank * pct * 100.0) / 100.0;
+                    payout = Math.min(payout, 5000); // cap per round to avoid hyperinflation
+                    if (payout < 10) return;
+                    List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
+                    // filter out capped players? they still get but feeds bank, so skip capped to avoid loop
+                    double cap = cap();
+                    online.removeIf(p -> getBalance(p) >= cap);
+                    if (online.isEmpty()) return;
+                    Collections.shuffle(online);
+                    double per = Math.floor(payout / online.size() * 100.0) / 100.0;
+                    double rem = Math.round((payout - per * online.size()) * 100.0) / 100.0;
+                    double total = 0;
+                    for (int i = 0; i < online.size(); i++) {
+                        Player p = online.get(i);
+                        double give = per + (i == 0 ? rem : 0);
+                        if (give <= 0) continue;
+                        addBalance(p, give);
+                        total += give;
+                        p.sendMessage("§6[Bank Interest] §a+$" + Money.format(give) + " §7from Server Bank!");
+                    }
+                    if (total > 0) {
+                        serverBank = Math.round((serverBank - total) * 100.0) / 100.0;
+                        if (serverBank < 0) serverBank = 0;
+                        JsonObject entry = new JsonObject();
+                        entry.addProperty("time", System.currentTimeMillis());
+                        entry.addProperty("player", "BANK→" + online.size() + " players");
+                        entry.addProperty("amount", -Math.round(total*100.0)/100.0);
+                        entry.addProperty("reason", "interest payout " + Money.format(total));
+                        entry.addProperty("bankAfter", getServerBank());
+                        history.add(entry);
+                        while (history.size() > 500) history.remove(0);
+                        saveServerBank();
+                        Bukkit.broadcastMessage("§6[Bank] §eInterest payout §a$" + Money.format(total) + " §7split to " + online.size() + " players!");
+                        plugin.getLogger().info("Bank interest " + Money.format(total) + " to " + online.size() + " players, bank now " + Money.format(serverBank));
+                    }
+                } catch (Exception ignored) {}
+            }
+        }.runTaskTimer(plugin, 24000L, 24000L);
     }
 
     @EventHandler(ignoreCancelled = true)

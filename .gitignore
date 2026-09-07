@@ -1,6 +1,7 @@
 # Build
 build/
 target/
+bin/
 *.class
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
