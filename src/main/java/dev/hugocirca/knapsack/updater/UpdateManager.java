@@ -18,7 +18,7 @@ import java.util.logging.Level;
 public class UpdateManager implements CommandExecutor {
 
     private final KnapsackPlugin plugin;
-    private static final String GITHUB_REPO = "HugoCirca/KnapsackPlugin-";
+    private static final String GITHUB_REPO = "HugoCirca/Knapsack";
     private static final String API_URL = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
     private static final long MIN_JAR_BYTES = 50_000L; // sanity floor: real jar is ~135KB
     private static final int MAX_BACKUPS = 3;
@@ -97,11 +97,11 @@ public class UpdateManager implements CommandExecutor {
     }
 
     private Path getPendingFile() {
-        return getUpdateDir().resolve("KnapsackPlugin.jar");
+        return getUpdateDir().resolve("Knapsack.jar");
     }
 
     private Path getBackupDir() {
-        return plugin.getDataFolder().getParentFile().toPath().resolve("KnapsackPlugin-backups");
+        return plugin.getDataFolder().getParentFile().toPath().resolve("Knapsack-backups");
     }
 
     private void cleanupOldJar() {
@@ -121,27 +121,40 @@ public class UpdateManager implements CommandExecutor {
             return;
         }
 
-        Path currentJar = plugin.getDataFolder().getParentFile().toPath().resolve("KnapsackPlugin.jar");
+        Path currentJar = getCurrentJar();
         try {
-            if (Files.exists(currentJar)) {
+            if (currentJar != null && Files.exists(currentJar)) {
                 backupCurrentJar(currentJar);
                 Files.deleteIfExists(currentJar);
+                Files.move(pendingUpdate, currentJar);
+                plugin.getLogger().info("Updated to new version successfully! Previous jar kept in Knapsack-backups/.");
+            } else {
+                // fallback: plugins/Knapsack.jar
+                Path fallback = plugin.getDataFolder().getParentFile().toPath().resolve("Knapsack.jar");
+                Files.move(pendingUpdate, fallback);
+                plugin.getLogger().info("Update staged as Knapsack.jar (no current jar found to replace).");
             }
-            Files.move(pendingUpdate, currentJar);
-            plugin.getLogger().info("Updated to new version successfully! Previous jar kept in KnapsackPlugin-backups/.");
         } catch (IOException e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to apply update, restoring backup", e);
-            restoreBackup(currentJar);
+            if (currentJar != null) restoreBackup(currentJar);
         } finally {
             deleteQuietly(getUpdateDir());
         }
+    }
+
+    private Path getCurrentJar() {
+        try {
+            java.io.File f = new java.io.File(plugin.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
+            if (f.isFile()) return f.toPath();
+        } catch (Exception ignored) {}
+        return null;
     }
 
     private void backupCurrentJar(Path currentJar) {
         try {
             Path backupDir = getBackupDir();
             Files.createDirectories(backupDir);
-            Path backup = backupDir.resolve("KnapsackPlugin-" + plugin.getDescription().getVersion() + ".jar");
+            Path backup = backupDir.resolve("Knapsack-" + plugin.getDescription().getVersion() + ".jar");
             Files.copy(currentJar, backup, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             pruneBackups(backupDir);
         } catch (IOException e) {
@@ -237,6 +250,7 @@ public class UpdateManager implements CommandExecutor {
 
     /** First asset SHA-256 digest published by the API (ours is the only asset). */
     private String parseDigest(String json) {
+        if (json == null) return null;
         for (String prefix : new String[]{"\"digest\":\"sha256:", "\"digest\": \"sha256:"}) {
             int idx = json.indexOf(prefix);
             if (idx != -1) {
@@ -293,11 +307,13 @@ public class UpdateManager implements CommandExecutor {
     }
 
     private String parseTag(String json) {
+        if (json == null) return null;
         int tagIdx = json.indexOf("\"tag_name\":\"");
         if (tagIdx == -1) return null;
 
         int start = tagIdx + "\"tag_name\":\"".length();
         int end = json.indexOf("\"", start);
+        if (end == -1) return null;
         return json.substring(start, end);
     }
 
@@ -321,7 +337,7 @@ public class UpdateManager implements CommandExecutor {
             Files.createDirectories(updateDir);
             Path updateFile = getPendingFile();
 
-            String downloadUrl = "https://github.com/" + GITHUB_REPO + "/releases/download/" + tag + "/KnapsackPlugin-" + tag.replace("v", "") + ".jar";
+            String downloadUrl = "https://github.com/" + GITHUB_REPO + "/releases/download/" + tag + "/Knapsack-" + tag.replace("v", "") + ".jar";
             HttpURLConnection conn = (HttpURLConnection) new URL(downloadUrl).openConnection();
             conn.setRequestProperty("User-Agent", "KnapsackPlugin-Updater");
             conn.setConnectTimeout(10000);
