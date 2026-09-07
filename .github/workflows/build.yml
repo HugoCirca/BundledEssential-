@@ -52,32 +52,26 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BundledEssential-${{ steps.version.outputs.VERSION }}
-          path: build/libs/BundledEssential-*.jar
+          name: Knapsack-${{ steps.version.outputs.VERSION }}
+          path: build/libs/Knapsack-*.jar
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
-          name: BundledEssential v${{ steps.version.outputs.VERSION }}
+          name: Knapsack v${{ steps.version.outputs.VERSION }}
           body: |
-            ## BundledEssential v${{ steps.version.outputs.VERSION }}
+            ## Knapsack v${{ steps.version.outputs.VERSION }}
 
-            ### Commands
-            - `/tpa <player>` - Send teleport request
-            - `/tpaccept` - Accept teleport request
-            - `/tpahere <player>` - Request player to teleport to you
-            - `/sethome` - Set your home
-            - `/removehome` - Remove your home
-            - `/home` - Teleport to home
-            - `/back` - Return to death location
-            - `/waypoint` - Open waypoint GUI
-            - `/waypoint new <name>` - Create waypoint
-            - `/waypoint delete <name>` - Delete waypoint
-            - `/trade <player>` - Send trade request
-            - `/tradeaccept` - Accept trade request
-            - `/tradecancel` - Cancel trade requests
-          files: build/libs/BundledEssential-*.jar
+            ### Commands (consolidated 2.0)
+            - `/tpa <player>` · `/tpa here <player>` · `/tpa` GUI (accept/deny + auto toggle)
+            - `/home` GUI (tp/shift-remove/empty-set) · `/home set` · `/sethome` alias
+            - `/back` (unchanged)
+            - `/waypoint` GUI (tp/shift-delete/empty-new) · `/waypoint new <name>`
+            - `/trade <player>` (GUI accept/deny)
+            - `/money` hub (`/eco` alias) → Balance/Pay/Shop/Sell/Bounty/Bank/Loan/Tax/Quest/Daily/Repair — shortcuts kept: `/shop` `/sell` `/balance` `/pay` `/resetbal`
+            - `/level` · `/playtime` · `/bundledhelp` · `/knapsackreload` · `/craft`
+          files: build/libs/Knapsack-*.jar
           draft: false
           prerelease: false
         env:
