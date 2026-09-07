@@ -113,6 +113,10 @@ commands:
     description: Admin wipe Server Bank to 0
     usage: /resetserverbal
     aliases: [resetbank, resetserverbank]
+  craft:
+    description: Open a crafting table
+    usage: /craft
+    aliases: [workbench, wb]
   bundledreload:
     description: Reload config.yml and features.yml (console friendly)
     usage: /bundledreload

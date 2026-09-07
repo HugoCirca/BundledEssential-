@@ -519,6 +519,19 @@ public class BundledEssential extends JavaPlugin {
                 });
             }
         } catch (Exception ignored) {}
+        // /craft portable workbench
+        try {
+            if (getCommand("craft") != null) {
+                getCommand("craft").setExecutor((sender, command, label, args) -> {
+                    if (!(sender instanceof Player player)) {
+                        sender.sendMessage("§cOnly players can use /craft");
+                        return true;
+                    }
+                    player.openWorkbench(null, true);
+                    return true;
+                });
+            }
+        } catch (Exception ignored) {}
         // Reload config.yml + features.yml live (console + admins, no restart)
         try {
             if (getCommand("bundledreload") != null) {
