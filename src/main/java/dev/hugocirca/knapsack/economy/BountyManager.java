@@ -24,7 +24,9 @@ public class BountyManager implements CommandExecutor {
     private final Map<UUID, Long> taxSince = new HashMap<>();
 
     private static final double LATE_FEE_RATE = 0.10; // +10% debt per reminder cycle once overdue
-    private static final double GARNISH_RATE = 0.25; // 25% of mob/playtime earnings seized while in debt
+    private static final double GARNISH_RATE = 0.15; // 15% of earnings seized (was 25% — too spammy on farms)
+    private static final long GARNISH_MSG_COOLDOWN = 4000L; // throttle garnish chat to avoid light-speed spam
+    private final Map<UUID, Long> lastGarnishMsg = new HashMap<>();
     private static final long GRACE_MILLIS = 24L * 60 * 60 * 1000; // 24h to pay before punishments
 
     private static final double BOUNTY_TAX_RATE = 0.20;
@@ -206,7 +208,7 @@ public class BountyManager implements CommandExecutor {
 
     /**
       * Seizes up to GARNISH_RATE of an earning toward unpaid taxes.
-      * Returns what the player actually keeps.
+      * Returns what the player actually keeps. Throttled chat to avoid per-kill spam on farms.
       */
     public double garnish(Player player, double amount) {
         double owed = unpaidTaxes.getOrDefault(player.getUniqueId(), 0.0);
@@ -220,8 +222,14 @@ public class BountyManager implements CommandExecutor {
         } else {
             unpaidTaxes.put(player.getUniqueId(), left);
         }
-        balanceManager.addServerBank(cut, player.getName(), "garnish 25%");
-        player.sendMessage("§c[Taxes] §e$" + dev.hugocirca.knapsack.util.Money.format(cut) + " §cseized for unpaid taxes → Server Bank! §7(/paytax)");
+        balanceManager.addServerBank(cut, player.getName(), "garnish " + (int)(GARNISH_RATE*100) + "%");
+        long now = System.currentTimeMillis();
+        long last = lastGarnishMsg.getOrDefault(player.getUniqueId(), 0L);
+        if (now - last >= GARNISH_MSG_COOLDOWN || left <= 0) {
+            lastGarnishMsg.put(player.getUniqueId(), now);
+            if (left <= 0) player.sendMessage("§a[Taxes] Final §e$" + Money.format(cut) + " §aseized — you're clear! §7(Bank: $" + Money.format(balanceManager.getServerBank()) + ")");
+            else player.sendMessage("§c[Taxes] §e$" + Money.format(cut) + " §cseized for unpaid taxes → Server Bank! §7($" + Money.format(left) + " owed, /paytax) §7(throttled)");
+        }
         return Math.round((amount - cut) * 100.0) / 100.0;
     }
 
