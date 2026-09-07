@@ -77,6 +77,9 @@ Open by default. Restrict via `knapsack.*` — see [Permissions](wiki/Permission
 
 ---
 
+## Features
+If you wanted a new feature, create a Issue then provide the description of what the functionality it shall be and I try to push it.
+
 ## License
 
 MIT
