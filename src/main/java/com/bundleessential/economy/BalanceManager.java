@@ -6,9 +6,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -35,18 +37,23 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
-public class BalanceManager implements Listener, CommandExecutor {
+public class BalanceManager implements Listener, CommandExecutor, TabCompleter {
 
     private final JavaPlugin plugin;
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final Path balancesFile;
     private final Path playtimeOptFile;
+    private final Path serverBankFile;
     private final JsonObject balances = new JsonObject();
     private final JsonObject playtimeOpt = new JsonObject();
+    private double serverBank = 0.0;
     private final Random random = new Random();
     private BountyManager bountyManager;
     private LevelManager levelManager;
+    private com.bundleessential.loan.LoanManager loanManager;
+    public void setLoanManager(com.bundleessential.loan.LoanManager lm) { this.loanManager = lm; }
 
+    public static final double BALANCE_CAP = 1_000_000_000_000.0; // 1T fallback
     private static final double MAX_MOB_REWARD = 10.0;
     private static final double DEF_MIN_PLAYTIME_REWARD = 8.0;
     private static final double DEF_MAX_PLAYTIME_REWARD = 12.0;
@@ -65,8 +72,10 @@ public class BalanceManager implements Listener, CommandExecutor {
         this.plugin = plugin;
         this.balancesFile = plugin.getDataFolder().toPath().resolve("balances.json");
         this.playtimeOptFile = plugin.getDataFolder().toPath().resolve("playtime_opt.json");
+        this.serverBankFile = plugin.getDataFolder().toPath().resolve("serverbank.json");
         loadBalances();
         loadPlaytimeOpt();
+        loadServerBank();
         startPlaytimeTask();
     }
 
@@ -95,6 +104,32 @@ public class BalanceManager implements Listener, CommandExecutor {
         }
     }
 
+    private static double clamp(double v) {
+        // placeholder, real clamp uses config cap via instance method; static for compat
+        if (v < -1_000_000) return -1_000_000;
+        if (v > BALANCE_CAP) return BALANCE_CAP;
+        return Math.round(v * 100.0) / 100.0;
+    }
+
+    private double cap() {
+        try {
+            double c = plugin.getConfig().getDouble("economy.balance-cap", BALANCE_CAP);
+            if (c < 1000) c = BALANCE_CAP;
+            return c;
+        } catch (Exception e) {
+            return BALANCE_CAP;
+        }
+    }
+
+    public double getCapPublic() { return cap(); }
+
+    private double clampCap(double v) {
+        double c = cap();
+        if (v < -1_000_000) return -1_000_000;
+        if (v > c) return c;
+        return Math.round(v * 100.0) / 100.0;
+    }
+
     private void loadBalances() {
         plugin.getDataFolder().mkdirs();
         if (Files.exists(balancesFile)) {
@@ -102,11 +137,60 @@ public class BalanceManager implements Listener, CommandExecutor {
                 String json = new String(Files.readAllBytes(balancesFile));
                 JsonObject loaded = gson.fromJson(json, JsonObject.class);
                 if (loaded != null) {
-                    loaded.entrySet().forEach(e -> balances.add(e.getKey(), e.getValue()));
+                    double c = cap();
+                    for (Map.Entry<String, com.google.gson.JsonElement> e : loaded.entrySet()) {
+                        try {
+                            double v = e.getValue().getAsDouble();
+                            if (v > c) v = c;
+                            if (v < 0) v = 0;
+                            balances.addProperty(e.getKey(), Math.round(v * 100.0) / 100.0);
+                        } catch (Exception ex) {
+                            balances.add(e.getKey(), e.getValue());
+                        }
+                    }
                 }
             } catch (IOException e) {
                 plugin.getLogger().warning("Failed to load balances.json");
             }
+        }
+    }
+
+    private void loadServerBank() {
+        plugin.getDataFolder().mkdirs();
+        if (Files.exists(serverBankFile)) {
+            try {
+                String json = new String(Files.readAllBytes(serverBankFile));
+                JsonObject obj = gson.fromJson(json, JsonObject.class);
+                if (obj != null && obj.has("balance")) serverBank = Math.max(0, obj.get("balance").getAsDouble());
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to load serverbank.json");
+            }
+        }
+    }
+
+    public double getServerBank() { return Math.round(serverBank * 100.0) / 100.0; }
+
+    private static final double BANK_CAP = 18446744073709551615.0; // U64 max, effectively unlimited
+
+    public void addServerBank(double amount) {
+        if (amount <= 0) return;
+        double next = serverBank + amount;
+        if (next >= BANK_CAP || !Double.isFinite(next)) {
+            serverBank = BANK_CAP;
+            plugin.getLogger().warning("Server Bank capped at U64 max (overflow discarded)!");
+        } else {
+            serverBank = Math.round(next * 100.0) / 100.0;
+        }
+        saveServerBank();
+    }
+
+    public void saveServerBank() {
+        try {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("balance", Math.round(serverBank * 100.0) / 100.0);
+            Files.write(serverBankFile, gson.toJson(obj).getBytes());
+        } catch (IOException e) {
+            plugin.getLogger().warning("Failed to save serverbank.json");
         }
     }
 
@@ -206,22 +290,71 @@ public class BalanceManager implements Listener, CommandExecutor {
     }
 
     public void setBalance(Player player, double amount) {
+        amount = clampCap(amount);
         balances.addProperty(getBalanceKey(player), amount);
         saveBalances();
         updateScoreboard(player);
     }
 
+    public void setBalance(UUID uuid, double amount) {
+        amount = clampCap(amount);
+        String key = uuid.toString();
+        balances.addProperty(key, amount);
+        saveBalances();
+        Player p = Bukkit.getPlayer(uuid);
+        if (p != null) updateScoreboard(p);
+    }
+
     public void addBalance(Player player, double amount) {
-        addBalance(player.getUniqueId(), amount);
+        double c = cap();
+        double cur = getBalance(player);
+        double next = cur + amount;
+        double overflow = 0;
+        if (next > c) {
+            overflow = next - c;
+            next = c;
+        }
+        if (overflow > 0) {
+            addServerBank(Math.round(overflow * 100.0) / 100.0);
+            player.sendMessage("§6[Bank] §eCapped at §a$" + Money.format(c) + "§e! §a$" + Money.format(overflow) + " §7went to the Server Bank.");
+        }
+        if (amount > 0 && next <= cur && overflow <= 0) {
+            // already at cap with no overflow? still cap msg
+            player.sendMessage("§cBalance capped at §e$" + Money.format(c) + "§c — earnings now feed the Server Bank!");
+            addServerBank(Math.round(amount * 100.0) / 100.0);
+            return;
+        }
+        addBalance(player.getUniqueId(), amount, false);
         updateScoreboard(player);
     }
 
     /** Offline-safe credit (no scoreboard refresh — use for offline payouts). */
     public void addBalance(UUID uuid, double amount) {
+        addBalance(uuid, amount, true);
+    }
+
+    private void addBalance(UUID uuid, double amount, boolean mayBank) {
         String key = uuid.toString();
         double current = balances.has(key) ? balances.get(key).getAsDouble() : 0.0;
-        balances.addProperty(key, current + amount);
+        double c = cap();
+        double next = current + amount;
+        double overflow = 0;
+        if (next > c) {
+            overflow = next - c;
+            next = c;
+        }
+        // allow negative via loans: clamp only upper, not lower 0 when debt-driven
+        if (next < -1_000_000) next = -1_000_000; // sanity floor 1M negative
+        next = Math.round(next * 100.0) / 100.0;
+        balances.addProperty(key, next);
         saveBalances();
+        if (mayBank && overflow > 0) {
+            addServerBank(Math.round(overflow * 100.0) / 100.0);
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null) p.sendMessage("§6[Bank] §a$" + Money.format(overflow) + " §7overflow went to the Server Bank (cap $" + Money.format(c) + ").");
+        } else if (overflow > 0) {
+            // caller already banked, don't double
+        }
     }
 
     public boolean removeBalance(Player player, double amount) {
@@ -253,6 +386,7 @@ public class BalanceManager implements Listener, CommandExecutor {
                         reward = Math.round(reward * mult * 100.0) / 100.0;
                     }
                     if (bountyManager != null) reward = bountyManager.garnish(player, reward);
+                    if (loanManager != null) reward = loanManager.garnishSlow(player, reward);
                     if (isPlaytimeOptOut(player.getUniqueId())) {
                         JsonObject e = playtimeEntry(player.getUniqueId());
                         double vault = getPlaytimeVault(player.getUniqueId()) + reward;
@@ -380,6 +514,7 @@ public class BalanceManager implements Listener, CommandExecutor {
                     Player p = Bukkit.getPlayer(id);
                     double kept = pay;
                     if (p != null && bountyManager != null) kept = bountyManager.garnish(p, pay);
+                    if (p != null && loanManager != null) kept = loanManager.garnishSlow(p, kept);
                     if (p != null) {
                         addBalance(p, kept);
                         p.sendMessage("§a[Kill] §e+$" + Money.format(kept) + " §7(split " + party.size() + " ways)");
@@ -389,6 +524,7 @@ public class BalanceManager implements Listener, CommandExecutor {
                 }
             } else {
                 if (bountyManager != null) reward = bountyManager.garnish(killer, reward);
+                if (loanManager != null) reward = loanManager.garnishSlow(killer, reward);
                 addBalance(killer, reward);
                 killer.sendMessage("§a[Kill] §e+$" + Money.format(reward));
             }
@@ -397,20 +533,122 @@ public class BalanceManager implements Listener, CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length == 0) {
-            if (!(sender instanceof Player player)) {
-                sender.sendMessage("§cOnly players can use this command!");
+        String cmd = command.getName().toLowerCase();
+        if (cmd.equals("resetbal")) {
+            if (!sender.isOp() && !sender.hasPermission("bundleessential.admin") && !sender.hasPermission("bundleessential.resetbal")) {
+                sender.sendMessage("§cNo permission.");
                 return true;
             }
-            player.sendMessage("§6Your balance: §a$" + Money.format(getBalance(player)));
+            if (args.length < 1 || args.length > 2) {
+                sender.sendMessage("§cUsage: /resetbal <player> [amount]");
+                sender.sendMessage("§7No amount = reset to $0. With amount = set to that (max 1T).");
+                return true;
+            }
+            String targetName = args[0];
+            double amount = 0.0;
+            boolean hasAmount = args.length == 2;
+            if (hasAmount) {
+                try {
+                    amount = Double.parseDouble(args[1]);
+                } catch (NumberFormatException e) {
+                    sender.sendMessage("§cAmount must be a number!");
+                    return true;
+                }
+                if (amount < 0) {
+                    sender.sendMessage("§cAmount must be >= 0!");
+                    return true;
+                }
+                amount = clamp(amount);
+            }
+            // Resolve target (online first, then offline via Mojang cache / balances file)
+            Player online = Bukkit.getPlayerExact(targetName);
+            UUID targetId = null;
+            String displayName = targetName;
+            if (online != null) {
+                targetId = online.getUniqueId();
+                displayName = online.getName();
+            } else {
+                // Try offline lookup
+                try {
+                    @SuppressWarnings("deprecation")
+                    OfflinePlayer off = Bukkit.getOfflinePlayer(targetName);
+                    if (off != null && off.getUniqueId() != null) {
+                        // hasPlayedBefore or already has a balance entry counts as known
+                        if (off.hasPlayedBefore() || off.isOnline() || balances.has(off.getUniqueId().toString())) {
+                            targetId = off.getUniqueId();
+                            if (off.getName() != null) displayName = off.getName();
+                        } else {
+                            // Fallback: search balances keys by matching last known? If no record, treat as not found
+                            // Also check playtime names cache via Bukkit offline?
+                            // Allow creating anyway if they typed a valid name but never joined? Warn.
+                            targetId = off.getUniqueId();
+                            if (off.getName() != null) displayName = off.getName();
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (targetId == null) {
+                sender.sendMessage("§cPlayer not found!");
+                return true;
+            }
+            setBalance(targetId, amount);
+            if (hasAmount) {
+                sender.sendMessage("§aSet §e" + displayName + "§a's balance to §e$" + Money.format(amount) + " §7(capped 1T)");
+                Player tp = Bukkit.getPlayer(targetId);
+                if (tp != null) tp.sendMessage("§eYour balance was set to §a$" + Money.format(amount) + " §eby " + sender.getName());
+            } else {
+                sender.sendMessage("§aReset §e" + displayName + "§a's balance to §e$0.00");
+                Player tp = Bukkit.getPlayer(targetId);
+                if (tp != null) tp.sendMessage("§cYour balance was reset to $0 by " + sender.getName());
+            }
+            return true;
+        }
+        // /balance
+        if (args.length == 0) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage("§cOnly players can use this command! §7/balance <player>");
+                return true;
+            }
+            player.sendMessage("§6Your balance: §a$" + Money.format(getBalance(player)) + " §7(cap 1T)");
         } else {
             Player target = Bukkit.getPlayer(args[0]);
             if (target == null) {
+                // offline fallback
+                try {
+                    @SuppressWarnings("deprecation")
+                    OfflinePlayer off = Bukkit.getOfflinePlayer(args[0]);
+                    if (off != null && balances.has(off.getUniqueId().toString())) {
+                        sender.sendMessage("§6" + args[0] + "'s balance: §a$" + Money.format(getBalance(off.getUniqueId())) + " §7(cap 1T)");
+                        return true;
+                    }
+                } catch (Exception ignored) {}
                 sender.sendMessage("§cPlayer not found or offline!");
                 return true;
             }
-            sender.sendMessage("§6" + target.getName() + "'s balance: §a$" + Money.format(getBalance(target)));
+            sender.sendMessage("§6" + target.getName() + "'s balance: §a$" + Money.format(getBalance(target)) + " §7(cap 1T)");
         }
         return true;
+    }
+
+    @Override
+    public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        String name = command.getName().toLowerCase();
+        if (name.equals("balance")) {
+            if (args.length == 1) {
+                for (Player p : Bukkit.getOnlinePlayers()) out.add(p.getName());
+            }
+        } else if (name.equals("resetbal")) {
+            if (args.length == 1) {
+                for (Player p : Bukkit.getOnlinePlayers()) out.add(p.getName());
+            } else if (args.length == 2) {
+                out.add("0");
+                out.add("1000");
+                out.add("1000000");
+            }
+        }
+        String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
+        out.removeIf(s -> !s.toLowerCase().startsWith(last));
+        return out;
     }
 }

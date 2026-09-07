@@ -12,6 +12,7 @@ import com.bundleessential.level.LevelManager;
 import com.bundleessential.level.PlaytimeManager;
 import com.bundleessential.light.DynamicLightManager;
 import com.bundleessential.home.HomeManager;
+import com.bundleessential.loan.LoanManager;
 import com.bundleessential.rewards.RewardManager;
 import com.bundleessential.spawner.SpawnerManager;
 import com.bundleessential.tpa.TpaManager;
@@ -50,6 +51,7 @@ public class BundledEssential extends JavaPlugin {
     private PlaytimeManager playtimeManager;
     private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
+    private LoanManager loanManager;
 
     @Override
     public void onEnable() {
@@ -101,6 +103,8 @@ public class BundledEssential extends JavaPlugin {
                 spawnerManager = new SpawnerManager(this);
             }
             if (balanceManager != null) {
+                loanManager = new LoanManager(this, balanceManager);
+                balanceManager.setLoanManager(loanManager);
                 giveawayManager = new GiveawayManager(balanceManager);
             }
             if (features.isEnabled("playtime")) {
@@ -149,6 +153,10 @@ public class BundledEssential extends JavaPlugin {
         }
         if (spawnerManager != null) {
             spawnerManager.saveAll();
+        }
+        if (loanManager != null) loanManager.saveAll();
+        if (balanceManager != null) {
+            balanceManager.saveServerBank();
         }
         if (playtimeManager != null) {
             playtimeManager.savePlaytime();
@@ -250,14 +258,16 @@ public class BundledEssential extends JavaPlugin {
         }
         if (balanceManager != null) {
             getCommand("balance").setExecutor(balanceManager);
-            getCommand("balance").setTabCompleter((sender, cmd, alias, args) -> {
-                java.util.List<String> s = new java.util.ArrayList<>();
-                if (args.length == 1) {
-                    for (Player pl : Bukkit.getOnlinePlayers()) s.add(pl.getName());
+            getCommand("balance").setTabCompleter(balanceManager);
+            getCommand("resetbal").setExecutor(balanceManager);
+            getCommand("resetbal").setTabCompleter(balanceManager);
+            getCommand("serverbank").setExecutor((sender, cmd, alias, args) -> {
+                sender.sendMessage("§6§lServer Bank: §a$" + Money.format(balanceManager.getServerBank()));
+                if (sender.isOp() || sender.hasPermission("bundleessential.admin")) {
+                    sender.sendMessage("§7Cap: §e$" + Money.format(balanceManager.getCapPublic()));
+                    sender.sendMessage("§7Overflow + garnish + bounty/pay taxes feed the bank. Config: economy.balance-cap");
                 }
-                String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
-                s.removeIf(x -> !x.toLowerCase().startsWith(last));
-                return s;
+                return true;
             });
             getCommand("repair").setExecutor((sender, command, label, args) -> {
                 if (!(sender instanceof Player player)) {
@@ -348,6 +358,10 @@ public class BundledEssential extends JavaPlugin {
                 s.removeIf(x -> x.startsWith("<") ? false : !x.toLowerCase().startsWith(last));
                 return s;
             });
+        }
+        if (loanManager != null) {
+            getCommand("loan").setExecutor(loanManager);
+            getCommand("loan").setTabCompleter(loanManager);
         }
         if (giveawayManager != null) {
             getCommand("giveaway").setExecutor(giveawayManager);
@@ -461,6 +475,30 @@ public class BundledEssential extends JavaPlugin {
                     String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
                     s.removeIf(x -> !x.toLowerCase().startsWith(last));
                     return s;
+                });
+            }
+        } catch (Exception ignored) {}
+        // Reload config.yml + features.yml live (console + admins, no restart)
+        try {
+            if (getCommand("bundledreload") != null) {
+                getCommand("bundledreload").setExecutor((sender, command, label, args) -> {
+                    if (!sender.isOp() && !sender.hasPermission("bundleessential.admin") && !sender.hasPermission("bundleessential.reload") && !(sender instanceof org.bukkit.command.ConsoleCommandSender)) {
+                        sender.sendMessage("§cNo permission.");
+                        return true;
+                    }
+                    try {
+                        reloadConfig();
+                        // re-save defaults so new keys like economy.balance-cap appear
+                        saveDefaultConfig();
+                        // Features is file-backed; reload by recreating (toggles are isEnabled checks)
+                        features = new com.bundleessential.util.Features(this);
+                        sender.sendMessage("§aBundledEssential config reloaded!");
+                        sender.sendMessage("§7balance-cap: §e$" + com.bundleessential.util.Money.format(getConfig().getDouble("economy.balance-cap", 1_000_000_000_000.0)));
+                        sender.sendMessage("§7Server Bank: §a$" + com.bundleessential.util.Money.format(balanceManager != null ? balanceManager.getServerBank() : 0));
+                    } catch (Exception e) {
+                        sender.sendMessage("§cReload failed: " + e.getMessage());
+                    }
+                    return true;
                 });
             }
         } catch (Exception ignored) {}

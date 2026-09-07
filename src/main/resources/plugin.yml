@@ -62,6 +62,12 @@ commands:
   balance:
     description: Check your balance or another player's balance
     usage: /balance [player]
+  resetbal:
+    description: Admin reset player balance (no amount = 0)
+    usage: /resetbal <player> [amount]
+  serverbank:
+    description: Show the Server Bank (tax + capped overflow)
+    usage: /serverbank
   sell:
     description: Sell the item in your main hand
     usage: /sell
@@ -100,3 +106,10 @@ commands:
   playtime:
     description: Check playtime, leaderboard, or opt vault
     usage: /playtime [leaderboard|top|optin|optout|vault|<player>]
+  loan:
+    description: Borrow money via GUI and repay
+    usage: /loan [pay [id|all]|info]
+  bundledreload:
+    description: Reload config.yml and features.yml (console friendly)
+    usage: /bundledreload
+    aliases: [bereload, bereloadconfig]

@@ -10,23 +10,24 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 | Module | Commands |
 |--------|----------|
-| **TPA** | `/tpa`, `/tpaccept`, `/tpahere`, `/tpaautoaccept` |
-| **Home** | `/sethome`, `/removehome`, `/home` |
+| **TPA** | `/tpa`, `/tpaccept`, `/tpahere`, `/tpaauto` (aliases `/tpa here/accept/auto`) |
+| **Home** | `/home`, `/sethome`, `/removehome` (`/home set/remove`) |
 | **Back** | `/back` |
 | **Waypoints** | `/waypoint` |
-| **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` |
-| **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/pay`, `/paytax`, `/bounty`, `/repair` |
+| **Trade** | `/trade`, `/tradeaccept`, `/tradecancel` (`/trade accept/cancel`) |
+| **Economy** | `/shop`, `/sell`, `/sellgui`, `/balance`, `/resetbal`, `/serverbank`, `/pay`, `/paytax`, `/bounty`, `/repair` |
+| **Loan** | `/loan` (bedrock GUI 200-2500 + custom anvil, 3/7/14/30d or slow 20%) |
 | **Auto-Sell** | `/autosell` (chest in `/shop` Custom tab) |
-| **Spawner** | _(stackable zombie spawner in `/shop` Custom tab)_ |
-| **Chunkloaders** | `/chunkload`, `/chunkdelete`, `/showchunk` |
+| **Spawner** | _(stackable zombie $250 + skeleton $500 in `/shop` Custom tab, iron+ pick to keep)_ |
 | **Leveling** | `/level` |
 | **Quests & Daily** | `/quest`, `/daily` |
-| **Playtime** | `/playtime` |
-| **Dynamic Light** | _(automatic — hold a light)_ |
-| **Help** | `/bundledhelp` |
+| **Playtime** | `/playtime` (leaderboard, `optin/optout/vault` silent farm) |
+| **Dynamic Light** | _(automatic — client-side fake light, no block place)_ |
+| **Help** | `/bundledhelp`, `/be`, `/bundledreload`, `/bundleversion` |
 
 - **Auto-updater** — Checks for updates on startup, downloads and applies on next restart (console can use `/bundledupdate` too)
 - **Dynamic Pricing** — Shop prices drift based on market simulation and inflation
+- **Server Bank** — Taxes + overflow beyond `economy.balance-cap` feed the bank (near-U64 unlimited)
 
 ---
 
@@ -37,9 +38,11 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | Command | Description |
 |---------|-------------|
 | `/tpa <player>` | Send a teleport request to a player |
-| `/tpahere <player>` | Request a player to teleport to you |
-| `/tpaccept` | Accept a pending teleport request |
-| `/tpaautoaccept [on|off]` | Toggle instant auto-accept (saved, survives restarts) |
+| `/tpa here <player>` | Request a player to teleport to you |
+| `/tpa accept` | Accept a pending teleport request |
+| `/tpa auto [on|off]` | Toggle instant auto-accept (saved) |
+| `/tpahere <player>` / `/tpaccept` | Legacy aliases (still work) |
+| `/tpaauto [on|off]` | Legacy alias for `/tpa auto` |
 
 - Requests expire after **30 seconds**
 - You cannot TPA to yourself
@@ -48,9 +51,10 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 
 | Command | Description |
 |---------|-------------|
-| `/sethome` | Set your home at your current location |
-| `/removehome` | Remove your home |
 | `/home` | Teleport to your home |
+| `/home set` | Set your home at your current location |
+| `/home remove` | Remove your home |
+| `/sethome` / `/removehome` | Legacy aliases |
 
 - Each player can only have **one home**
 
@@ -72,65 +76,72 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/waypoint <name>` | Teleport to a waypoint by name |
 
 - Maximum of **27 waypoints** per player
-- Click a waypoint in the GUI to teleport
 
 ### Trade
 
 | Command | Description |
 |---------|-------------|
 | `/trade <player>` | Send a trade request to a player |
-| `/tradeaccept` | Accept a pending trade request (opens the trade GUI) |
-| `/tradecancel` | Cancel a pending request or an open trade |
+| `/trade accept` | Accept a pending trade request (opens GUI) |
+| `/trade cancel` | Cancel a pending request or an open trade |
+| `/tradeaccept` / `/tradecancel` | Legacy aliases |
 
 - Requests expire after **30 seconds**
-- Accepting opens a shared **trade GUI**: your offer on your side, glass divider in the middle, both players' heads at the bottom
-- Put items on your side, click the **green pane** to accept — changing any offer resets both accepts (anti-scam)
-- When **both** accept, items swap. Closing, `/tradecancel` or logging out returns everyone's items
+- Both sides accept via green pane; changing offer resets both accepts (anti-scam)
+- Closing, `/trade cancel` or quit returns items
 
 ### Economy
 
 | Command | Description |
 |---------|-------------|
 | `/shop` | Open the shop with categories |
-| `/shop search <name>` | Jump straight to matching items (Bedrock-friendly, no anvil needed) |
+| `/shop search <name>` | Jump straight to matching items (Bedrock-friendly) |
 | `/sell` | Sell the item in your main hand |
 | `/sellgui` | Open sell GUI — put items in, close to sell |
 | `/balance` | Check your balance |
-| `/balance <player>` | Check another player's balance |
-| `/pay <player> <amount>` | Pay a player |
-| `/bounty <player> [amount]` | Set or check a bounty |
+| `/balance <player>` | Check another player's balance (also offline) |
+| `/resetbal <player> [amount]` | **Admin** reset/set balance (clamped to cap, negatives allowed for loans) |
+| `/serverbank` | Show Server Bank (tax + overflow beyond cap) |
+| `/loan` | Open loan GUI (see Loans) |
+| `/pay <player> <amount>` | Pay a player (5% tax → Bank, garnished if overdue) |
+| `/bounty <player> [amount]` | Set or check a bounty (20% tax → Bank on claim) |
+| `/paytax` | Pay accumulated taxes → Bank |
+| `/repair [full]` | Repair held item (cost scales with durability) |
+| `/bundledreload` / `bereload` | Reload `config.yml` + `features.yml` live (console + admins) |
+
+#### Balance Cap & Server Bank
+- Per-player cap is `economy.balance-cap` in `config.yml` (default `1,000,000,000,000` = 1T — add zeros to taste, reload via `/bundledreload`)
+- `balance` is clamped on save/load; overflow from any earning (`/sell`, playtime, kills, quests, autosell) → Bank
+- All taxes: `/pay` 5% and bounty 20% (immediate to Bank), `garnish` 25% of playtime/kills when in tax debt → Bank, `/paytax` → Bank
+- Bank is in `serverbank.json`, effectively unlimited until unsigned 64-bit max (`18446744073709551615`), then capped with warning
+- E at cap sees "Capped!" and earnings feed Bank
+
+#### Loans (`LoanManager`)
+| Command | Description |
+|---------|-------------|
+| `/loan` | Chest GUI — bedrock `200/500/1000/1500/2000/2500` + compass custom (anvil 50-10000) → pick repayment |
+| `/loan pay [id|all]` | Repay lump loan early (on-time +$25 bonus, overdue no bonus, can go negative) |
+| `/loan info` | List active loans (id, debt, mode, due) |
+
+- Repay modes: **3/7/14/30 days lump** (must `/loan pay` before due) or **Slow Deduct** (20% of each earning auto-pays, no due date)
+- Late lump: +5%/day compound, adds to `debt`; `/loan pay` can go negative as punishment
+- Slow fully paid → +$25 bonus; cap total debt $10000 per player
+- Data: `loans.json`
 
 #### Money Sources
-- **Kill mobs** — $0.01 to $10.00 (random)
-- **Playtime** — ~$10.00 every 5 minutes ($8-12 base, scaled up by your level, tunable in `config.yml` under `economy:`)
-- **Bounty claims** — Kill a player with a bounty to claim it (20% tax, placers can't claim their own)
+- **Kill mobs** — $0.01 to $10.00 (random, split among damagers)
+- **Playtime** — ~$10.00 every 5 minutes ($8-12 base, scaled by level, tunable under `economy:`; `/playtime optout` silent farms to personal vault, `/playtime optin` claims vault)
+- **Bounty claims** — Kill a player with a bounty to claim it (20% → Bank, placers can't claim own)
+- **Sell** — 60% of buy price + enchant bonus; autosell chests tick at interval
 
 #### Shop Categories
-- **Logs** — All logs, woods, planks, saplings, leaves (incl. Cherry, Pale Oak)
-- **Stone** — Cobblestone, Stone, Deepslate, Granite, Sandstone, Tuff, dirt, sand, etc.
-- **Ores** — Coal, Iron, Copper, Gold, Redstone, Lapis, Diamond, Emerald, Quartz, Amethyst, Netherite, Resin
-- **Crops** — Wheat, Carrot, Potato, Melon, Pumpkin, berries, mushrooms, all flowers, Torchflower, Eyeblossom, etc.
-- **Mob Drops** — Bone, String, Gunpowder, Ender Pearl, Blaze/Breeze Rods, heads, Totem, Nether Star, Elytra, etc.
-- **Food** — Raw + cooked meat and fish, bread, cake, stews, golden foods
-- **Tools** — All tiers incl. Mace, bows, buckets, boats, bundles, compasses, minecarts
-- **Armor** — All tiers, horse armor, Wolf Armor, Harnesses, armor trims
-- **Building** — All wool, concrete, terracotta, glass, stairs/slabs/walls, quartz, prismarine, copper, sulfur/cinnabar
-- **Decoration** — Furniture, lights, candles, beds, banners, shulker boxes, music discs, shelves, copper chests
-- **Redstone** — Pistons, rails, Crafter, Copper Bulbs, sculk, TNT
-- **Nether** — Full Nether set incl. Blackstone, Basalt, Nylium, Netherite
-- **End** — End Stone, Purpur, Chorus, all Shulker Boxes, Dragon Egg, Elytra
-- **New 1.21-26.2** — Copper/Tuff variants, Pale Garden, Resin, Happy Ghast gear, Sulfur & Cinnabar sets, new discs
-- **Misc** — Auto-filled with every item not in another category, so nothing is ever missing
-- **Custom** — Auto-Sell Chest + Zombie Spawner (barrier icon, bottom-right), see below
-- **Search** — Compass button in `/shop` opens an anvil: type a name, land on a results page. No anvil? Use `/shop search <name>` instead (works everywhere, incl. Bedrock)
-- **Bulk buying** — Click any stackable item, then the red/green panes to pick 1-64 (shift-click = 10 at a time), confirm to buy the stack. Yellow/orange/pink panes instant-buy 10/25/50. Unstackables (tools/weapons) still buy instantly
+- **Logs, Stone, Ores, Crops, Mob Drops, Food, Tools, Armor, Building, Decoration, Redstone, Nether, End, New 1.21-26.2, Misc, Custom**
+- **Custom**: Auto-Sell Chest ($500) + Zombie Spawner $250 + Skeleton Spawner $500 (bottom row)
+- **Search**: compass anvil or `/shop search <name>` (Bedrock-friendly)
+- **Bulk**: click stackable → panes for 1-64 / 10/25/50; unstackables instant 1
 
 #### Dynamic Pricing
-- Prices drift ±5-10% every 5 minutes
-- Inflation grows slowly over server uptime
-- Enchanted items sell for bonus money
-- Sell price is 60% of current buy price
-- High-end items (Elytra, Totem, Netherite, Dragon Egg...) keep premium prices
+- Prices drift ±5-10% every 5 minutes, inflation over uptime, enchant bonus, 60% sell
 
 ### Auto-Sell Chest
 
@@ -139,17 +150,11 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/autosell` | How it works + price |
 | `/autosell give <player> [amount]` | Admin handout (op only) |
 
-- Buy the chest in `/shop` (Custom tab, $500 by default). **Right-click air** holding it to set the sell interval (30s/1m/5m/10m) and pick recipients via player heads (online + offline, equal split). **Sneak + right-click** a placed one to reconfigure it
-- Place it, drop items in by hand or feed it with **hoppers** — contents sell automatically every interval at normal `/sell` prices, split equally between recipients (works for offline players too)
-- Breaking it returns the chest (config kept); explosions destroy it like a normal chest
-- Tune in `config.yml` under `autosell:` (price, default interval, interval options, max recipients)
+- Right-click air to set interval (30s/1m/5m/10m) + recipients (equal split, offline too); sneak+right-click placed to reconfigure; hoppers feed it
 
-### Zombie Spawner
+### Spawners
 
-- Buy the spawner in `/shop` (Custom tab, $500 by default). Place it for a normal zombie spawner labeled **Zombie 1x**
-- **Right-click** a placed spawner holding another spawner item to consume it and raise the rate (2x, 3x... up to **35x**). Each extra level spawns bonus zombies every spawner cycle
-- Breaking it returns the spawner **with its rate kept**, so relocating loses nothing. Explosions destroy it like normal
-- Tune in `config.yml` under `spawner:` (price, max-multiplier)
+- Zombie $250, Skeleton $500 — **iron pickaxe or better** required to keep on break (else cancelled). Right-click same-type to stack to 35x, keep rate on break, hologram label.
 
 ### Leveling
 
@@ -158,89 +163,56 @@ A lightweight, low-resource Minecraft plugin that bundles essential teleportatio
 | `/level` | Check your level, XP progress and playtime bonus |
 | `/level <player>` | Check another player's level |
 
-- Collect **XP orbs** to earn server XP and level up
-- Each level needs more XP than the last: `base-xp x multiplier^(level-1)` (default `100 x 1.5`)
-- Higher level boosts your playtime money prize
-- Configurable in `config.yml` under `leveling:` (enabled, base-xp, multiplier, playtime-bonus-per-level)
+- Need `base-xp x multiplier^(level-1)` (default `100 x 1.5`), higher level boosts playtime prize
 
 ### Playtime
 
 | Command | Description |
 |---------|-------------|
 | `/playtime` | Check your total online time |
-| `/playtime <player>` | Check another player's time (works offline) |
-| `/playtime leaderboard` | Top 10 players by playtime |
+| `/playtime <player>` | Check another player's time (offline too) |
+| `/playtime leaderboard` / `top` | Top 10 |
+| `/playtime optout` | Silent farm earnings to personal vault (no messages) |
+| `/playtime optin` | Claim vault + resume messages |
+| `/playtime vault` | Show vault |
 
 ### Quests & Daily
 
 | Command | Description |
 |---------|-------------|
 | `/quest` | Check current quest progress |
-| `/quest claim` | Claim a finished quest — a new one starts instantly, no waiting |
-| `/quest skip` | Ditch the current quest for a fresh roll (no reward, no penalty) |
-| `/daily` | Claim daily streak reward (aliases `/login`, `/claim`, `/streak`) |
+| `/quest claim` | Claim finished quest — new one instantly |
+| `/quest skip` | Ditch current quest for fresh roll |
+| `/daily` | Claim daily streak (aliases `/login`, `/claim`, `/streak`) |
 
-- **Quests** — 15 repeatable tasks: mine stone/ores, harvest crops, hunt hostiles, catch real fish, breed/tame/shear animals, enchant, smelt, brew, eat, sleep, visit dimensions, gain XP levels. Rewards $20-90 (ores, hunts and enchants pay most). Claiming instantly rolls your next quest
-- **Login streak** — `/daily` claims it manually each day: Day N pays `base + (N-1) x per-day + random`, plus a bonus every 7th day ($50) and 30th day ($200) by default (day 1 ~$25, day 365 ~$1850). Missing one day freezes the streak (no gain, no reset); missing more resets it
-- Player-placed blocks (shop-bought ores, etc.) never count toward quests — no buy-and-break farming
-- Tune everything in `config.yml` under `rewards:` (login base/per-day/random/bonuses, daily reward multiplier)
-
-### Chunkloaders
-
-| Command | Description |
-|---------|-------------|
-| `/chunkload [name]` | Force-load the chunk you stand in (free, max 3) |
-| `/chunkload buy` | +1 loader slot for $10 (no cap) |
-| `/chunkdelete <name>` | Remove one of your chunkloaders |
-| `/showchunk [name]` | Outline your loaded chunks + list them (✓ = really force-loaded) |
-
-- Loaders keep their chunk ticking (farms, hoppers, spawners all run), even while you are offline. No upkeep, no fees
-- Loaders re-apply automatically after every restart (force-loads don't survive one)
-- Deleting only unforces a chunk nobody else still loads
+- 15 tasks $20-90; login streak `base+(N-1)*per-day+random` + weekly $50 + monthly $200; placed shop blocks don't count
 
 ### Dynamic Light
 
-No command — just hold anything with a light property in either hand and it glows around you: torches, lanterns, lava buckets, glowstone, shroomlight, sea lanterns, froglights, end rods, jack o'lanterns, campfires, beacons, conduits, crying obsidian, amethyst buds and more.
-
-- Places a real invisible Light block at your feet (only ever replaces air)
-- Light follows you, updates its level, and is removed on logout/shutdown
-- No extra dynamic-lights plugin needed
-- Configurable in `config.yml` under `dynamic-light:` (enabled, interval-ticks)
+No command — hold light in either hand → client-side `Light` via `sendBlockChange` at feet/eye, no real block placed so crouch/buckets/liquids never break. Freezes near spawners (radius `dynamic-light.spawner-freeze-radius`). Tune `interval-ticks`.
 
 ### Help
 
 | Command | Description |
 |---------|-------------|
-| `/bundledhelp` | Get the guide book with all commands |
-| `/bundleversion` | Show the installed plugin version |
+| `/bundledhelp` | Get the guide book |
+| `/be help/version/update` | Consolidated hub (`/bundle` alias) |
+| `/bundledreload` | Reload config + features live |
+| `/bundleversion` / `/bundledupdate` | Version / updater |
 
 ---
 
 ## Auto-Updater
 
-The plugin automatically checks for new versions on startup via GitHub Releases. If an update is found:
-
-1. The new JAR is downloaded to `plugins/update/`
-2. On next server restart, the old JAR is replaced with the new one
-
-No forced restarts — updates apply naturally.
-
-- Downloads are checksum-verified against the release's published SHA-256 (size check as fallback); bad files are deleted, never applied
-- The replaced jar is kept as a versioned backup in `plugins/BundledEssential-backups/` (last 3)
-- A failed apply restores the backup automatically
-- `/bundledupdate` tells you if an update is already pending on disk
-
-Players with `bundleessential.update` permission (and console) can run `/bundledupdate` to check/download manually.
+Checks GitHub Releases on startup. If new: download to `plugins/update/` → next restart replaces jar. Checksum-verified, backup kept in `plugins/BundledEssential-backups/` (last 3), auto-restore on fail. `/bundledupdate` shows pending.
 
 ---
 
 ## Installation
 
-1. Download the latest `BundledEssential-X.X.X.jar` from [Releases](https://github.com/HugoCirca/BundledEssential-/releases)
-2. Place the jar in your server's `plugins/` folder
-3. Restart the server
-
-The plugin will keep itself updated automatically.
+1. Download latest `BundledEssential-X.X.X.jar` from [Releases](https://github.com/HugoCirca/BundledEssential-/releases)
+2. Place in `plugins/` folder
+3. Restart
 
 ---
 
@@ -253,54 +225,30 @@ git clone https://github.com/HugoCirca/BundledEssential-.git
 cd BundledEssential-
 ./gradlew clean build
 ```
-
-The compiled jar will be in `build/libs/`.
+Jar in `build/libs/`.
 
 ---
 
 ## CI/CD
 
-The GitHub Actions workflow automatically:
-
-1. Bumps the patch version in `build.gradle`
-2. Builds the plugin
-3. Commits the version bump
-4. Creates a GitHub release with the new tag
-
-Just push to `main` and a new release is created.
+GitHub Actions on push to `main`: bump patch, build, commit, release.
 
 ---
 
 ## Configuration
 
-Toggle every feature in `plugins/BundledEssential/features.yml` (tpa, home, back,
-waypoints, trade, economy, bounty, pay, shop, sell, leveling, rewards, autosell,
-spawner, chunkload, playtime, dynamic-light, updater) — set `false` and restart to disable.
-Fine-tuning values stay in `config.yml` (leveling rates, light interval,
-`rewards.login` streak payouts, `rewards.daily` multiplier, `autosell` chest price,
-`spawner` price, playtime base rewards under `economy:`).
+Toggle every feature in `plugins/BundledEssential/features.yml` (tpa, home, back, waypoints, trade, economy, bounty, pay, shop, sell, leveling, rewards, autosell, spawner, playtime, dynamic-light, updater) — set `false` and restart to disable. Fine-tuning stays in `config.yml` (e.g., `economy.balance-cap`, `economy.playtime-min/max-reward`, `leveling.*`, `rewards.*`, `autosell.*`, `spawner.*`, `dynamic-light.*`).
 
 All player data is stored automatically in:
-- `plugins/BundledEssential/homes.yml` - Home locations
-- `plugins/BundledEssential/config.yml` - Waypoint locations
-- `plugins/BundledEssential/balances.json` - Player balances
-- `plugins/BundledEssential/levels.json` - Player levels and XP
-- `plugins/BundledEssential/playtime.json` - Player online time
-- `plugins/BundledEssential/rewards.json` - Quest progress, login streaks, anti-farm block list
-- `plugins/BundledEssential/autosell.json` - Auto-sell chest locations + configs
-- `plugins/BundledEssential/spawner.json` - Boosted spawner locations + rates
-- `plugins/BundledEssential/chunkloaders.json` - Named chunkloader claims
-- `plugins/BundledEssential/shop.json` - Shop price overrides (delete to reset to defaults)
+- `homes.yml`, `balances.json` + `serverbank.json`, `loans.json`, `levels.json`, `playtime.json` + `playtime_opt.json`, `rewards.json`, `autosell.json`, `spawner.json`, `shop.json` (price overrides)
 
-No manual configuration needed.
+No manual configuration needed; `/bundledreload` applies `config.yml`/`features.yml` without restart.
 
 ---
 
 ## Permissions
 
-All commands are **open to everyone by default**. No permissions plugin needed.
-
-If you want to restrict access, add these permission nodes:
+All commands are **open by default**. To restrict, add:
 
 ```yaml
 bundleessential.tpa: true
@@ -310,6 +258,10 @@ bundleessential.waypoint: true
 bundleessential.trade: true
 bundleessential.economy: true
 bundleessential.update: true
+bundleessential.admin: true   # resetbal, serverbank details, breload
+bundleessential.reload: true
+bundleessential.resetbal: true
+bundleessential.giveaway: true
 ```
 
 ---

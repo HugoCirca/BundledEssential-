@@ -7,6 +7,9 @@ economy:
   playtime-rewards: true
   playtime-min-reward: 8.0
   playtime-max-reward: 12.0
+  # Hard cap per-player balance — overflow + all taxes go to the Server Bank (serverbank.json).
+  # Change zeros to your liking; default 1,000,000,000,000 = 1T. Earnings stop at cap and feed the bank.
+  balance-cap: 1000000000000.0
 
 # Leveling System (collect XP orbs to level up, higher level = bigger playtime prize)
 leveling:

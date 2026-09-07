@@ -124,7 +124,8 @@ public class BountyManager implements CommandExecutor {
             unpaidTaxes.remove(player.getUniqueId());
             taxSince.remove(player.getUniqueId());
             lastTaxTime.put(player.getUniqueId(), System.currentTimeMillis());
-            player.sendMessage("§aYou paid §e$" + Money.format(owed) + " §ain taxes! You're clear.");
+            balanceManager.addServerBank(owed);
+            player.sendMessage("§aYou paid §e$" + Money.format(owed) + " §ain taxes to the Server Bank! You're clear. §7(Bank: $" + Money.format(balanceManager.getServerBank()) + ")");
         } else {
             player.sendMessage("§cNot enough money! You owe §e$" + Money.format(owed) + "§c in taxes.");
         }
@@ -204,9 +205,9 @@ public class BountyManager implements CommandExecutor {
     }
 
     /**
-     * Seizes up to GARNISH_RATE of an earning toward unpaid taxes.
-     * Returns what the player actually keeps.
-     */
+      * Seizes up to GARNISH_RATE of an earning toward unpaid taxes.
+      * Returns what the player actually keeps.
+      */
     public double garnish(Player player, double amount) {
         double owed = unpaidTaxes.getOrDefault(player.getUniqueId(), 0.0);
         if (owed <= 0 || amount <= 0) return amount;
@@ -219,7 +220,8 @@ public class BountyManager implements CommandExecutor {
         } else {
             unpaidTaxes.put(player.getUniqueId(), left);
         }
-        player.sendMessage("§c[Taxes] §e$" + com.bundleessential.util.Money.format(cut) + " §cseized for unpaid taxes! §7(/paytax)");
+        balanceManager.addServerBank(cut);
+        player.sendMessage("§c[Taxes] §e$" + com.bundleessential.util.Money.format(cut) + " §cseized for unpaid taxes → Server Bank! §7(/paytax)");
         return Math.round((amount - cut) * 100.0) / 100.0;
     }
 
@@ -235,8 +237,8 @@ public class BountyManager implements CommandExecutor {
             double tax = Math.round(bounty * BOUNTY_TAX_RATE * 100.0) / 100.0;
             double payout = Math.round((bounty - tax) * 100.0) / 100.0;
             balanceManager.addBalance(killer, payout);
-            stampDebt(killer.getUniqueId(), tax);
-            killer.sendMessage("§aYou claimed the §e$" + Money.format(bounty) + " §abounty on §e" + victim.getName());
+            balanceManager.addServerBank(tax);
+            killer.sendMessage("§aYou claimed the §e$" + Money.format(bounty) + " §abounty on §e" + victim.getName() + " §7($" + Money.format(tax) + " tax → Bank)");
             Bukkit.broadcastMessage("§6[Bounty] §e" + killer.getName() + " §ahas claimed the §e$" + Money.format(bounty) + " §abounty on §e" + victim.getName());
         }
     }
