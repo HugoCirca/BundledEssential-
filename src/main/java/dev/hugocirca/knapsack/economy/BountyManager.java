@@ -24,8 +24,9 @@ public class BountyManager implements CommandExecutor {
     private final Map<UUID, Long> taxSince = new HashMap<>();
 
     private static final double LATE_FEE_RATE = 0.10; // +10% debt per reminder cycle once overdue
-    private static final double GARNISH_RATE = 0.15; // 15% of earnings seized (was 25% — too spammy on farms)
-    private static final long GARNISH_MSG_COOLDOWN = 4000L; // throttle garnish chat to avoid light-speed spam
+    private static final double GARNISH_RATE = 0.05; // 5% — was 25%→15% still hell on every mob, now 1/20th
+    private static final long GARNISH_MSG_COOLDOWN = 8000L; // 8s throttle + min cut filter
+    private static final double GARNISH_MIN_CUT = 0.10; // ignore dust garnish < 10c to stop per-mob spam
     private final Map<UUID, Long> lastGarnishMsg = new HashMap<>();
     private static final long GRACE_MILLIS = 24L * 60 * 60 * 1000; // 24h to pay before punishments
 
@@ -214,6 +215,7 @@ public class BountyManager implements CommandExecutor {
         double owed = unpaidTaxes.getOrDefault(player.getUniqueId(), 0.0);
         if (owed <= 0 || amount <= 0) return amount;
         double cut = Math.round(Math.min(owed, amount * GARNISH_RATE) * 100.0) / 100.0;
+        if (cut < GARNISH_MIN_CUT) return amount; // ignore dust — stops every-mob spam
         if (cut <= 0) return amount;
         double left = Math.round((owed - cut) * 100.0) / 100.0;
         if (left <= 0) {
