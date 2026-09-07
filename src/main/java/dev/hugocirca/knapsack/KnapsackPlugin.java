@@ -18,6 +18,7 @@ import dev.hugocirca.knapsack.spawner.SpawnerManager;
 import dev.hugocirca.knapsack.tpa.TpaManager;
 import dev.hugocirca.knapsack.trade.TradeManager;
 import dev.hugocirca.knapsack.updater.UpdateManager;
+import dev.hugocirca.knapsack.economy.MoneyHubManager;
 import dev.hugocirca.knapsack.util.DataStorage;
 import dev.hugocirca.knapsack.util.Features;
 import dev.hugocirca.knapsack.util.HelpManager;
@@ -52,6 +53,7 @@ public class KnapsackPlugin extends JavaPlugin {
     private DynamicLightManager dynamicLightManager;
     private SellManager sellManager;
     private LoanManager loanManager;
+    private MoneyHubManager moneyHubManager;
 
     @Override
     public void onEnable() {
@@ -139,6 +141,8 @@ public class KnapsackPlugin extends JavaPlugin {
             if (features.isEnabled("dynamic-light")) {
                 dynamicLightManager = new DynamicLightManager(this);
             }
+            // Money hub aggregates economy actions — only if economy enabled
+            moneyHubManager = new MoneyHubManager(this, balanceManager, bountyManager, shopManager, sellManager, priceManager, loanManager, rewardManager);
         }
         helpManager = new HelpManager();
         if (features.isEnabled("updater")) {
@@ -186,7 +190,7 @@ public class KnapsackPlugin extends JavaPlugin {
                 levelManager, rewardManager, playtimeManager,
                 autosellManager, loanManager, giveawayManager,
                 homeManager, backManager, tradeManager, tpaManager,
-                waypointManager, updateManager, helpManager);
+                waypointManager, updateManager, helpManager, moneyHubManager);
     }
 
     private void migrateLegacyData() {

@@ -37,7 +37,7 @@ public final class CommandRegistry {
                                 dev.hugocirca.knapsack.tpa.TpaManager tpa,
                                 dev.hugocirca.knapsack.waypoint.WaypointManager waypoints,
                                 dev.hugocirca.knapsack.updater.UpdateManager updater,
-                                HelpManager help) {
+                                HelpManager help, dev.hugocirca.knapsack.economy.MoneyHubManager money) {
 
         if (tpa != null) {
             plugin.getCommand("tpa").setExecutor(tpa);
@@ -47,7 +47,6 @@ public final class CommandRegistry {
         }
         if (home != null) {
             plugin.getCommand("sethome").setExecutor(home);
-            plugin.getCommand("removehome").setExecutor(home);
             plugin.getCommand("home").setExecutor(home);
             plugin.getCommand("home").setTabCompleter(home);
         }
@@ -55,8 +54,6 @@ public final class CommandRegistry {
         if (trade != null) {
             plugin.getCommand("trade").setExecutor(trade);
             plugin.getCommand("trade").setTabCompleter(trade);
-            plugin.getCommand("tradeaccept").setExecutor(trade);
-            plugin.getCommand("tradecancel").setExecutor(trade);
         }
         if (waypoints != null) {
             plugin.getCommand("waypoint").setExecutor(waypoints);
@@ -168,6 +165,12 @@ public final class CommandRegistry {
         try {
             if (plugin.getCommand("bundledreload") != null) {
                 plugin.getCommand("bundledreload").setExecutor(new BundledReloadCommand(plugin, balance));
+            }
+        } catch (Exception ignored) {}
+
+        try {
+            if (plugin.getCommand("money") != null && money != null) {
+                plugin.getCommand("money").setExecutor(money);
             }
         } catch (Exception ignored) {}
     }

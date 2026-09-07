@@ -14,29 +14,21 @@ commands:
     description: Send a request for a player to teleport to you
     usage: /tpahere <player>
   sethome:
-    description: Set your home location
+    description: Set your home location (alias to /home set)
     usage: /sethome
-  removehome:
-    description: Remove your home
-    usage: /removehome
+    aliases: [sh]
   home:
-    description: Teleport home or manage it
-    usage: /home [set|remove]
+    description: Teleport home or manage it — GUI or /home set
+    usage: /home [set]
   back:
     description: Return to your last death location
     usage: /back
   waypoint:
-    description: Manage waypoints
-    usage: /waypoint [new|delete|name]
+    description: Manage waypoints — GUI or /waypoint new <name>
+    usage: /waypoint [new <name>]
   trade:
-    description: Send a trade request or accept/cancel
-    usage: /trade <player|accept|cancel>
-  tradeaccept:
-    description: Accept a pending trade request
-    usage: /tradeaccept
-  tradecancel:
-    description: Cancel your pending trade requests
-    usage: /tradecancel
+    description: Send a trade request (accept/deny in GUI)
+    usage: /trade <player>
   shop:
     description: Open the shop or search it by name
     usage: /shop [search <name>]
@@ -107,6 +99,10 @@ commands:
     description: Admin wipe Server Bank to 0
     usage: /resetserverbal
     aliases: [resetbank, resetserverbank]
+  money:
+    description: Money hub — Balance/Pay/Shop/Sell/Bank/Loan/Tax/Quest/Daily/Repair
+    usage: /money
+    aliases: [eco, wallet, cash]
   craft:
     description: Open a crafting table
     usage: /craft

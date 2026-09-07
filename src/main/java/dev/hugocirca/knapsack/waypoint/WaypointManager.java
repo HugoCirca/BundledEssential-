@@ -9,6 +9,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -186,6 +187,13 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
         if (clicked == null || clicked.getType() == Material.AIR) return;
         if (clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
 
+        if (clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) {
+            if (event.isShiftClick()) return;
+            // empty slot -> new waypoint via anvil
+            player.closeInventory();
+            openNewAnvil(player);
+            return;
+        }
         // Check if it's a wool item (waypoint)
         if (clicked.getType().name().endsWith("_WOOL")) {
             ItemMeta meta = clicked.getItemMeta();
@@ -219,6 +227,19 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
         if (!event.getView().getTitle().equals(GUI_TITLE)) return;
         // Cancel all clicks including number keys, shift clicks, etc.
         event.setCancelled(true);
+    }
+
+    private void openNewAnvil(Player player) {
+        try {
+            new AnvilGUI.Builder().onClose(s -> plugin.getServer().getScheduler().runTask(plugin, () -> openWaypointGUI(player)))
+                .onClick((slot, state) -> {
+                    if (slot != AnvilGUI.Slot.OUTPUT) return java.util.Collections.emptyList();
+                    String name = state.getText() == null ? "" : state.getText().trim();
+                    if (name.isEmpty()) return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                    plugin.getServer().getScheduler().runTask(plugin, () -> { createWaypoint(player, name); openWaypointGUI(player); });
+                    return java.util.Collections.singletonList(AnvilGUI.ResponseAction.close());
+                }).text("").title("New waypoint").plugin(plugin).open(player);
+        } catch (Exception ex) { player.sendMessage("§cAnvil unavailable"); }
     }
 
     private ItemStack createItem(Material material, String name, String... lore) {

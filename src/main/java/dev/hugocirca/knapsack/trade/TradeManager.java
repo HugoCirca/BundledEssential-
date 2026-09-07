@@ -56,44 +56,21 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
             sender.sendMessage("§cOnly players can use this command!");
             return true;
         }
-
-        String cmd = command.getName().toLowerCase();
-        if (cmd.equals("trade") && args.length >= 1) {
-            String sub = args[0].toLowerCase();
-            if (sub.equals("accept")) {
-                handleTradeAccept(player);
-                return true;
-            }
-            if (sub.equals("cancel")) {
-                handleTradeCancel(player);
-                return true;
-            }
+        if (args.length != 1) {
+            player.sendMessage("§cUsage: /trade <player>");
+            return true;
         }
-        switch (cmd) {
-            case "trade" -> {
-                if (args.length != 1) {
-                    player.sendMessage("§cUsage: /trade <player> | /trade accept | /trade cancel");
-                    return true;
-                }
-                handleTrade(player, args[0]);
-            }
-            case "tradeaccept" -> handleTradeAccept(player);
-            case "tradecancel" -> handleTradeCancel(player);
-        }
+        handleTrade(player, args[0]);
         return true;
     }
 
     @Override
     public java.util.List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         java.util.List<String> out = new java.util.ArrayList<>();
-        if (command.getName().equalsIgnoreCase("trade")) {
-            if (args.length == 1) {
-                out.add("accept");
-                out.add("cancel");
-                for (Player p : Bukkit.getOnlinePlayers()) {
-                    if (sender instanceof Player self && p.equals(self)) continue;
-                    out.add(p.getName());
-                }
+        if (args.length == 1) {
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (sender instanceof Player self && p.equals(self)) continue;
+                out.add(p.getName());
             }
         }
         String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase();
@@ -122,7 +99,8 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
         pendingTrades.put(targetId, senderId);
 
         sender.sendMessage("§aTrade request sent to §e" + target.getName() + "§a!");
-        target.sendMessage("§e" + sender.getName() + " §awants to trade with you. §6/tradeaccept §7to accept.");
+        target.sendMessage("§e" + sender.getName() + " §awants to trade with you.");
+        openPendingGui(target, sender);
 
         new BukkitRunnable() {
             @Override
@@ -178,6 +156,35 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
             sender.sendMessage("§cYour pending trade requests have been cancelled.");
         } else {
             sender.sendMessage("§cYou have no pending trade requests to cancel.");
+        }
+    }
+
+    private void openPendingGui(Player target, Player sender) {
+        Inventory inv = Bukkit.createInventory(null, 27, "§6Trade Request");
+        inv.setItem(11, head(sender, "§e" + sender.getName(), "§7wants to trade"));
+        inv.setItem(15, named(Material.LIME_WOOL, "§aAccept", "§7Click to trade"));
+        inv.setItem(16, named(Material.RED_WOOL, "§cDeny", "§7Decline"));
+        target.openInventory(inv);
+    }
+
+    @EventHandler
+    public void onPendingClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player p)) return;
+        if (!event.getView().getTitle().equals("§6Trade Request")) return;
+        event.setCancelled(true);
+        if (event.getRawSlot() >= event.getView().getTopInventory().getSize()) return;
+        UUID id = p.getUniqueId();
+        if (!pendingTrades.containsKey(id)) { p.closeInventory(); return; }
+        int slot = event.getSlot();
+        if (slot == 15) {
+            handleTradeAccept(p);
+            p.closeInventory();
+        } else if (slot == 16) {
+            UUID senderId = pendingTrades.remove(id);
+            p.sendMessage("§cDenied trade request.");
+            Player s = Bukkit.getPlayer(senderId);
+            if (s != null) s.sendMessage("§c" + p.getName() + " denied your trade request.");
+            p.closeInventory();
         }
     }
 
