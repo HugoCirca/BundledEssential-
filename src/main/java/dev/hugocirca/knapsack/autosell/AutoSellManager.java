@@ -131,8 +131,12 @@ public class AutoSellManager implements Listener, CommandExecutor, Saveable {
             return false;
         }
         try {
-            return item.getItemMeta().getPersistentDataContainer()
-                    .has(tagKey(plugin), PersistentDataType.BYTE);
+            var c = item.getItemMeta().getPersistentDataContainer();
+            if (c.has(tagKey(plugin), PersistentDataType.BYTE)) return true;
+            // legacy BundledEssential key for chests created before rename
+            try { if (c.has(new NamespacedKey("bundleessential", "autosell"), PersistentDataType.BYTE)) return true; } catch (Exception ignored) {}
+            try { if (c.has(new NamespacedKey("bundledessential", "autosell"), PersistentDataType.BYTE)) return true; } catch (Exception ignored) {}
+            return false;
         } catch (Exception e) {
             return false;
         }
@@ -140,8 +144,10 @@ public class AutoSellManager implements Listener, CommandExecutor, Saveable {
 
     public static UUID idOf(JavaPlugin plugin, ItemStack item) {
         try {
-            String s = item.getItemMeta().getPersistentDataContainer()
-                    .get(idKey(plugin), PersistentDataType.STRING);
+            var c = item.getItemMeta().getPersistentDataContainer();
+            String s = c.get(idKey(plugin), PersistentDataType.STRING);
+            if (s == null) s = c.get(new NamespacedKey("bundleessential", "autosell-id"), PersistentDataType.STRING);
+            if (s == null) s = c.get(new NamespacedKey("bundledessential", "autosell-id"), PersistentDataType.STRING);
             return s == null ? null : UUID.fromString(s);
         } catch (Exception e) {
             return null;
@@ -491,11 +497,13 @@ public class AutoSellManager implements Listener, CommandExecutor, Saveable {
         }
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && player.isSneaking()) {
             Block clicked = event.getClickedBlock();
-            if (clicked == null) {
-                return;
-            }
+            if (clicked == null) return;
             UUID chestId = chestAt(clicked);
             if (chestId == null) {
+                // Not an AutoSell chest — but if it's a plain chest and autosell is disabled, tell admin why
+                if (clicked.getType() == Material.CHEST && !plugin.getConfig().getBoolean("autosell.enabled", true)) {
+                    // features gate is actually in KnapsackPlugin, but also check here
+                }
                 return;
             }
             event.setCancelled(true);
