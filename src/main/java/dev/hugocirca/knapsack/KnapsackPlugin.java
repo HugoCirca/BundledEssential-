@@ -56,6 +56,7 @@ public class KnapsackPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+        migrateLegacyData(); // P7B: silent copy BundledEssential → Knapsack
         saveDefaultConfig();
 
         dataStorage = new DataStorage(this);
@@ -161,6 +162,33 @@ public class KnapsackPlugin extends JavaPlugin {
                 autosellManager, loanManager, giveawayManager,
                 homeManager, backManager, tradeManager, tpaManager,
                 waypointManager, updateManager, helpManager);
+    }
+
+    private void migrateLegacyData() {
+        try {
+            java.io.File newFolder = getDataFolder(); // plugins/Knapsack
+            java.io.File legacy = new java.io.File(newFolder.getParentFile(), "BundledEssential");
+            if (!legacy.exists() || !legacy.isDirectory()) return;
+            if (newFolder.exists()) {
+                String[] existing = newFolder.list();
+                if (existing != null && existing.length > 0) return; // already has data, don't overwrite
+            }
+            getLogger().info("Migrating legacy data from BundledEssential → Knapsack...");
+            newFolder.mkdirs();
+            java.nio.file.Files.walk(legacy.toPath()).forEach(src -> {
+                try {
+                    java.nio.file.Path dest = newFolder.toPath().resolve(legacy.toPath().relativize(src));
+                    if (java.nio.file.Files.isDirectory(src)) {
+                        java.nio.file.Files.createDirectories(dest);
+                    } else {
+                        java.nio.file.Files.copy(src, dest, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    }
+                } catch (Exception ignored) {}
+            });
+            getLogger().info("Legacy data migration complete (kept " + legacy.getName() + " intact).");
+        } catch (Exception e) {
+            getLogger().warning("Legacy migration failed: " + e.getMessage());
+        }
     }
 
     public Features getFeatures() { return features; }
