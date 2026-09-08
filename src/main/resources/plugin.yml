@@ -114,3 +114,6 @@ commands:
     description: Reload config.yml and features.yml (console friendly)
     usage: /bundledreload
     aliases: [bereload, bereloadconfig, knapsackreload]
+  dumpitems:
+    description: Dumps all current item Materials to items.txt
+    usage: /dumpitems

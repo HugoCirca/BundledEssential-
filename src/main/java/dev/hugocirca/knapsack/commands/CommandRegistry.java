@@ -174,5 +174,12 @@ public final class CommandRegistry {
                 plugin.getCommand("money").setExecutor(money);
             }
         } catch (Exception ignored) {}
+
+        // files.zip linked: /dumpitems dumps Material.isItem list to plugins/Knapsack/items.txt
+        try {
+            if (plugin.getCommand("dumpitems") != null) {
+                plugin.getCommand("dumpitems").setExecutor(new DumpItemsCommand(plugin));
+            }
+        } catch (Exception ignored) {}
     }
 }
