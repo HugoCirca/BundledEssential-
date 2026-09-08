@@ -10,6 +10,12 @@ economy:
   # Hard cap per-player balance — overflow + all taxes go to the Server Bank (serverbank.json).
   # Change zeros to your liking; default 1,000,000,000,000 = 1T. Earnings stop at cap and feed the bank.
   balance-cap: 1000000000000.0
+  scoreboard:
+    # Shows Money in the sidebar. Set to false to disable fully and never touch the player's scoreboard.
+    enabled: true
+    # If true, when a player already has a sidebar (from another plugin), we add "Money: $X" to THEIR board
+    # instead of overwriting it. If false, we replace their sidebar with our E-balance.
+    merge: true
 
 # Leveling System (collect XP orbs to level up, higher level = bigger playtime prize)
 leveling:

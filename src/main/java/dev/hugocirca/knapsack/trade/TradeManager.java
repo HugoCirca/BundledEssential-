@@ -343,6 +343,8 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
         Trade trade = activeTrades.get(player.getUniqueId());
         if (trade == null || trade.finished) return;
         if (!event.getInventory().equals(trade.inv)) return;
+        // Grace: ignore closes within 2s of creation (bot sync / double-open race)
+        if (System.currentTimeMillis() - trade.createdAt < 2000) return;
         cancelTrade(trade, "§cTrade closed — items returned.");
     }
 
@@ -446,6 +448,7 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
         boolean aAccepted = false;
         boolean bAccepted = false;
         boolean finished = false;
+        final long createdAt = System.currentTimeMillis();
 
         Trade(UUID a, UUID b, Inventory inv) {
             this.a = a;

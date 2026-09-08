@@ -40,6 +40,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -69,6 +70,9 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter, 
     private static final double DEF_MIN_PLAYTIME_REWARD = 8.0;
     private static final double DEF_MAX_PLAYTIME_REWARD = 12.0;
     private static final long PLAYTIME_INTERVAL_TICKS = 6000L;
+
+    // Scoreboard merge: remember last balance line per player to cleanly update merged boards.
+    private final Map<UUID, String> lastBalanceLine = new HashMap<>();
 
     // Assist tracking: who hit each mob (for split kill payouts + quest credit).
     private static final int DAMAGERS_CAP = 2000;
@@ -367,21 +371,90 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter, 
     }
 
     private void updateScoreboard(Player player) {
+        // Check if scoreboard is disabled in config
+        boolean enabled = true;
+        try { enabled = plugin.getConfig().getBoolean("economy.scoreboard.enabled", true); } catch (Exception ignored) {}
         ScoreboardManager manager = Bukkit.getScoreboardManager();
-        Scoreboard board = manager.getNewScoreboard();
+        Scoreboard board = player.getScoreboard();
+        boolean isMain = board == manager.getMainScoreboard();
 
-        Objective obj = board.registerNewObjective("ebalance", Criteria.DUMMY, "§6§lE-balance");
-        obj.setDisplaySlot(DisplaySlot.SIDEBAR);
-        hideSidebarNumbers(obj);
+        if (!enabled) {
+            String old = lastBalanceLine.remove(player.getUniqueId());
+            if (old != null) {
+                try { board.resetScores(old); } catch (Exception ignored) {}
+            }
+            // If we own the sidebar, unregister it and revert to main if we created a new board
+            Objective eb = board.getObjective("ebalance");
+            if (eb != null && eb.getDisplaySlot() == DisplaySlot.SIDEBAR) {
+                try { eb.unregister(); } catch (Exception ignored) {}
+                if (!isMain && board.getObjective(DisplaySlot.SIDEBAR) == null && board.getObjectives().isEmpty()) {
+                    try { player.setScoreboard(manager.getMainScoreboard()); } catch (Exception ignored) {}
+                }
+            }
+            return;
+        }
 
-        Score line2 = obj.getScore("§fMoney: §a$" + Money.format(getBalance(player)));
-        line2.setScore(2);
-        Score line3 = obj.getScore(" ");
-        line3.setScore(1);
-        Score line4 = obj.getScore("§7Kill mobs & play");
-        line4.setScore(0);
+        boolean merge = true;
+        try { merge = plugin.getConfig().getBoolean("economy.scoreboard.merge", true); } catch (Exception ignored) {}
 
-        player.setScoreboard(board);
+        // Don't pollute the global main scoreboard — create a new one if player is on main
+        if (isMain) {
+            board = manager.getNewScoreboard();
+        }
+
+        Objective sidebar = board.getObjective(DisplaySlot.SIDEBAR);
+        Objective obj = board.getObjective("ebalance");
+
+        if (obj == null) {
+            if (merge && sidebar != null && sidebar.getName() != null && !sidebar.getName().equals("ebalance")) {
+                // Merge: reuse their existing sidebar objective
+                obj = sidebar;
+            } else {
+                // No merge or no existing sidebar — we own it
+                if (sidebar != null && !merge && sidebar.getName() != null && !sidebar.getName().equals("ebalance")) {
+                    try { sidebar.unregister(); } catch (Exception ignored) {}
+                    sidebar = null;
+                }
+                try {
+                    obj = board.registerNewObjective("ebalance", Criteria.DUMMY, "§6§lE-balance");
+                    obj.setDisplaySlot(DisplaySlot.SIDEBAR);
+                    hideSidebarNumbers(obj);
+                } catch (IllegalArgumentException e) {
+                    // Already exists (race) — fetch it
+                    obj = board.getObjective("ebalance");
+                    if (obj == null) obj = board.getObjective(DisplaySlot.SIDEBAR);
+                }
+            }
+        }
+
+        if (obj == null) return;
+
+        boolean weOwn = "ebalance".equals(obj.getName());
+        if (weOwn) {
+            try { obj.setDisplayName("§6§lE-balance"); } catch (Exception ignored) {}
+            hideSidebarNumbers(obj);
+        }
+
+        // Remove previous balance line to update cleanly
+        String oldLine = lastBalanceLine.get(player.getUniqueId());
+        if (oldLine != null) {
+            try { board.resetScores(oldLine); } catch (Exception ignored) {}
+        }
+        String newLine = "§fMoney: §a$" + Money.format(getBalance(player));
+        lastBalanceLine.put(player.getUniqueId(), newLine);
+        obj.getScore(newLine).setScore(2);
+
+        if (weOwn) {
+            // Only add our filler lines when we own the objective — don't pollute their board
+            try { board.resetScores(" "); } catch (Exception ignored) {}
+            try { board.resetScores("§7Kill mobs & play"); } catch (Exception ignored) {}
+            obj.getScore(" ").setScore(1);
+            obj.getScore("§7Kill mobs & play").setScore(0);
+        }
+
+        if (board != player.getScoreboard()) {
+            try { player.setScoreboard(board); } catch (Exception ignored) {}
+        }
     }
 
     /**
@@ -483,6 +556,7 @@ public class BalanceManager implements Listener, CommandExecutor, TabCompleter, 
         for (Set<UUID> set : damagers.values()) {
             set.remove(id);
         }
+        lastBalanceLine.remove(id);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

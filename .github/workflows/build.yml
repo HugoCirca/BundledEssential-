@@ -89,13 +89,15 @@ jobs:
           loaders: |
             paper
             purpur
-            spigot
-            bukkit
-            folia
           game-versions: |
             1.21.11
             26.1
             26.1.1
             26.1.2
             26.2
+          changelog: |
+            ${{ github.event.head_commit.message }}
+
+            Commit: ${{ github.event.head_commit.url }}
+            See: https://github.com/HugoCirca/Knapsack/commit/${{ github.sha }}
           files: build/libs/Knapsack-*.jar
