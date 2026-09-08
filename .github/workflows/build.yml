@@ -76,3 +76,16 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Modrinth
+        uses: Kir-Antipov/mc-publish@v3
+        with:
+          modrinth-id: knapsack
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-featured: true
+          name: Knapsack v${{ steps.version.outputs.VERSION }}
+          version: ${{ steps.version.outputs.VERSION }}
+          version-type: release
+          loaders: paper, purpur, spigot, bukkit, folia
+          game-versions: 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2
+          files: build/libs/Knapsack-*.jar
