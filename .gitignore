@@ -13,6 +13,7 @@ bin/
 *.iml
 .idea/
 .vscode/
+AGENTS.md
 
 # Gradle
 .gradle/
