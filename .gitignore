@@ -17,3 +17,9 @@ AGENTS.md
 
 # Gradle
 .gradle/
+
+# Local only (keep on disk, not in repo)
+icon.png
+icon.svg
+push.bat
+WatchList.txt

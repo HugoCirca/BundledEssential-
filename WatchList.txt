@@ -1,6 +1,0 @@
-WATCHLIST - edge cases flagged during review. If a player reports something matching an entry below, start here.
-- One real edge case worth checking, though — race condition on simultaneous accept:;
-
-Look at lines 281-291. If both players click Accept in the exact same tick (technically possible with two clients spamming), Bukkit processes events sequentially so it should still be fine — but there's no synchronized or thread-safety concern since Bukkit's main thread is single-threaded anyway. So actually not a real bug, just flagging I checked it.
-
-The one thing I'd actually test yourself: what happens if a player who accepted, then opens another inventory somehow while trade is active (some plugins/exploits let you swap inventories without firing InventoryCloseEvent properly on old versions). Given you're targeting 1.13+, older Spigot/Paper builds occasionally have quirks here — worth a real in-game test just to see the "Accepted ✓" head lore updates correctly when you spam-click accept/unaccept a few times fast.
