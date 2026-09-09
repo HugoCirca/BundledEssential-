@@ -60,6 +60,9 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener, Sav
     private final Path file;
     private final JsonObject data = new JsonObject();
     private final Map<UUID, Integer> pendingAmt = new HashMap<>();
+    private final Map<UUID, Long> lastBorrowMs = new HashMap<>();
+    private static final long BORROW_COOLDOWN_MS = 10 * 60 * 1000L; // 10 min between borrows
+    private static final long BONUS_MIN_HOLD_MS = 30 * 60 * 1000L; // 30 min hold for +$25 bonus
 
     public LoanManager(JavaPlugin plugin, BalanceManager balance) {
         this.plugin = plugin;
@@ -277,17 +280,25 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener, Sav
     }
 
     private void createAndGive(Player player, int amount, int days, String mode) {
+        long now = System.currentTimeMillis();
+        Long last = lastBorrowMs.get(player.getUniqueId());
+        if (last != null && now - last < BORROW_COOLDOWN_MS) {
+            long sec = (BORROW_COOLDOWN_MS - (now - last) + 999) / 1000;
+            player.sendMessage("§cLoan cooldown: wait " + sec + "s before borrowing again.");
+            return;
+        }
         double capDebt = totalDebt(player.getUniqueId());
         if (capDebt >= 10000) { player.sendMessage("§cToo much debt (max total $10000). Pay some first via /loan pay"); return; }
         if (capDebt + amount > 10000) { player.sendMessage("§cThat would exceed $10000 total debt cap!"); return; }
         JsonObject loan = newLoan(player.getUniqueId(), amount, days, mode);
         loans().add(loan);
+        lastBorrowMs.put(player.getUniqueId(), now);
         saveAll();
         balance.addBalance(player, amount);
         pendingAmt.remove(player.getUniqueId());
         String id = loan.get("id").getAsString();
         if (mode.equals("SLOW")) player.sendMessage("§aLoan §e$" + amount + " §agiven! ID §e" + id + " §a— Slow deduct 20% of earnings until paid. §7/loan pay " + id);
-        else player.sendMessage("§aLoan §e$" + amount + " §agiven! ID §e" + id + " §aDue in §e" + days + "d§a. §7/loan pay " + id + " §7to repay (+$25 bonus if on time)");
+        else player.sendMessage("§aLoan §e$" + amount + " §agiven! ID §e" + id + " §aDue in §e" + days + "d§a. §7/loan pay " + id + " §7to repay (+$25 bonus if on time and held 30m+)");
     }
 
     private void payOne(Player player, String id) {
@@ -313,9 +324,14 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener, Sav
         target.addProperty("repaid", true);
         target.addProperty("debt", 0.0);
         saveAll();
-        if (!overdue) {
+        long created = target.has("created") ? target.get("created").getAsLong() : 0L;
+        boolean heldLongEnough = created == 0L || System.currentTimeMillis() - created >= BONUS_MIN_HOLD_MS;
+        if (!overdue && heldLongEnough) {
             balance.addBalance(player, REWARD);
             player.sendMessage("§aPaid loan §e" + id + " §a$" + Money.format(debt) + " + §e$25 bonus §afor on-time!");
+        } else if (!overdue) {
+            long need = (BONUS_MIN_HOLD_MS - (System.currentTimeMillis() - created) + 999) / 1000;
+            player.sendMessage("§aPaid loan §e" + id + " §a$" + Money.format(debt) + " §7(no bonus — hold 30m for bonus, " + need + "s early)");
         } else {
             player.sendMessage("§ePaid overdue loan §c" + id + " §f$" + Money.format(debt) + " §7(no bonus, was overdue)");
         }
@@ -357,12 +373,20 @@ public class LoanManager implements CommandExecutor, TabCompleter, Listener, Sav
         if (nextDebt <= 0.01) {
             slow.addProperty("repaid", true);
             slow.addProperty("debt", 0.0);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (player.isOnline()) {
-                    player.sendMessage("§aSlow loan repaid! +§e$25 bonus");
-                    balance.addBalance(player, REWARD);
-                }
-            });
+            long created = slow.has("created") ? slow.get("created").getAsLong() : 0L;
+            boolean heldLongEnough = created == 0L || System.currentTimeMillis() - created >= BONUS_MIN_HOLD_MS;
+            if (heldLongEnough) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline()) {
+                        player.sendMessage("§aSlow loan repaid! +§e$25 bonus");
+                        balance.addBalance(player, REWARD);
+                    }
+                });
+            } else {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    if (player.isOnline()) player.sendMessage("§aSlow loan repaid! §7(no bonus — hold 30m)");
+                });
+            }
         } else {
             player.sendMessage("§6[Loan] §e$" + Money.format(cut) + " §7auto-paid to loan (remaining §c$" + Money.format(nextDebt) + "§7)");
         }

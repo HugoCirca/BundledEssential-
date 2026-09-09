@@ -102,41 +102,36 @@ public class SellManager implements CommandExecutor, Listener {
 
         // Shift-click on item in sell GUI: sell all of that type from player inventory (not GUI)
         if ((click == ClickType.SHIFT_LEFT || click == ClickType.SHIFT_RIGHT) && clicked != null && clicked.getType() != Material.AIR) {
-            // count includes enchanted variants? Use type match only for now
+            double total = 0;
             int count = 0;
-            for (ItemStack invItem : player.getInventory().getContents()) {
+            // Scan and remove from main storage 0-35 strictly by type (including enchanted variants) — avoids isSimilar dupe
+            for (int i = 0; i < 36; i++) {
+                ItemStack invItem = player.getInventory().getItem(i);
                 if (invItem != null && invItem.getType() == clicked.getType()) {
+                    total += priceManager.getSellPriceWithEnchants(invItem) * invItem.getAmount();
                     count += invItem.getAmount();
+                    player.getInventory().setItem(i, null);
                 }
             }
-            // also check offhand and armor? leggings might be equipped? Include armor
-            for (ItemStack invItem : player.getInventory().getArmorContents()) {
-                if (invItem != null && invItem.getType() == clicked.getType()) count += invItem.getAmount();
+            // also check armor and offhand
+            ItemStack[] armor = player.getInventory().getArmorContents();
+            for (int i = 0; i < armor.length; i++) {
+                ItemStack invItem = armor[i];
+                if (invItem != null && invItem.getType() == clicked.getType()) {
+                    total += priceManager.getSellPriceWithEnchants(invItem) * invItem.getAmount();
+                    count += invItem.getAmount();
+                    armor[i] = null;
+                }
             }
+            player.getInventory().setArmorContents(armor);
             ItemStack off = player.getInventory().getItemInOffHand();
-            if (off != null && off.getType() == clicked.getType()) count += off.getAmount();
-
+            if (off != null && off.getType() == clicked.getType()) {
+                total += priceManager.getSellPriceWithEnchants(off) * off.getAmount();
+                count += off.getAmount();
+                player.getInventory().setItemInOffHand(null);
+            }
             if (count > 0) {
-                // Use actual items' prices (with enchants) for accurate total - sum each stack's price
-                double total = 0;
-                for (ItemStack invItem : player.getInventory().getContents()) {
-                    if (invItem != null && invItem.getType() == clicked.getType()) {
-                        total += priceManager.getSellPriceWithEnchants(invItem) * invItem.getAmount();
-                    }
-                }
-                for (ItemStack invItem : player.getInventory().getArmorContents()) {
-                    if (invItem != null && invItem.getType() == clicked.getType()) total += priceManager.getSellPriceWithEnchants(invItem) * invItem.getAmount();
-                }
-                if (off != null && off.getType() == clicked.getType()) total += priceManager.getSellPriceWithEnchants(off) * off.getAmount();
                 total = Math.round(total * 100.0) / 100.0;
-                // remove from all inventories
-                player.getInventory().removeItem(new ItemStack(clicked.getType(), count));
-                // also need to clear armor/offhand if they held it - removeItem above handles main, but armor needs manual
-                // For armor leggings specifically, remove from armor if present
-                ItemStack[] armor = player.getInventory().getArmorContents();
-                for (int i=0;i<armor.length;i++) if (armor[i]!=null && armor[i].getType()==clicked.getType()) armor[i]=null;
-                player.getInventory().setArmorContents(armor);
-                if (off != null && off.getType() == clicked.getType()) player.getInventory().setItemInOffHand(null);
                 if (total > 0) {
                     balanceManager.addBalance(player, total);
                     player.sendMessage("§aSold §e" + count + "x " + formatMaterialName(clicked.getType()) + " §afor §e$" + Money.format(total));
@@ -197,18 +192,33 @@ public class SellManager implements CommandExecutor, Listener {
             totalItems += amount;
         }
 
+        // Include cursor item in sale if player closed while dragging (avoid item loss)
+        ItemStack cursor = event.getView().getCursor();
+        if (cursor != null && cursor.getType() != Material.AIR && cursor.getType() != Material.EMERALD_BLOCK) {
+            int amount = cursor.getAmount();
+            double price = priceManager.getSellPriceWithEnchants(cursor);
+            double cursorTotal = Math.round(price * amount * 100.0) / 100.0;
+            totalEarned += cursorTotal;
+            totalItems += amount;
+        }
         if (totalItems > 0) {
             totalEarned = Math.round(totalEarned * 100.0) / 100.0;
             balanceManager.addBalance(player, totalEarned);
             player.sendMessage("§aSold §e" + totalItems + " items §afor §e$" + Money.format(totalEarned) + "§a!");
+        } else {
+            // Nothing sold: return cursor to player instead of deleting
+            if (cursor != null && cursor.getType() != Material.AIR && cursor.getType() != Material.EMERALD_BLOCK) {
+                // cursor will be returned automatically if we don't clear it; ensure player gets it
+                // do nothing — Bukkit will handle cursor return
+            }
+            // Still clear GUI to prevent ghost items
+            inventory.clear();
+            player.updateInventory();
+            return;
         }
         // Fix dupe: clear GUI and cursor so items don't return to player after credit
         inventory.clear();
-        // also clear cursor if it holds a sellable item that was counted
-        ItemStack cursor = event.getView().getCursor();
-        if (cursor != null && cursor.getType() != Material.AIR && cursor.getType() != Material.EMERALD_BLOCK) {
-            event.getView().setCursor(null);
-        }
+        event.getView().setCursor(null);
         player.updateInventory();
     }
 

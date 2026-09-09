@@ -114,9 +114,9 @@ public class RewardManager implements Listener, CommandExecutor, Saveable {
     private static final double DEF_DAILY_MULT = 1.0;
 
     // Anti-farm: player-placed blocks never count toward quests (covers shop-bought
-    // ores, silk-touch recycle, place-and-break loops). Keyed by coords, LRU-capped.
-    private static final int PLACED_CAP = 20000;
-    private final LinkedHashMap<String, Boolean> placed = new LinkedHashMap<String, Boolean>(1024, 0.75f, false) {
+    // ores, silk-touch recycle, place-and-break loops). Keyed by coords, LRU-capped at 100k (was 20k — too easy to evict).
+    private static final int PLACED_CAP = 100000;
+    private final LinkedHashMap<String, Boolean> placed = new LinkedHashMap<String, Boolean>(4096, 0.75f, false) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
             return size() > PLACED_CAP;
@@ -562,12 +562,17 @@ public class RewardManager implements Listener, CommandExecutor, Saveable {
         } catch (Exception e) {
             return;
         }
-        if (after.getType() != before) {
+        // Only count if block actually became air (not replaced with sand/other block within 1 tick)
+        if (after.getType().isAir()) {
             String ck = locKey(loc);
             if (countedBreaks.add(ck)) {
                 addProgress(player, need, 1);
                 Bukkit.getScheduler().runTaskLater(plugin, () -> countedBreaks.remove(ck), 70L);
             }
+            return;
+        }
+        if (after.getType() != before) {
+            // Block changed to different solid (e.g., sand placed) — not a valid break, don't count
             return;
         }
         if (retry) {

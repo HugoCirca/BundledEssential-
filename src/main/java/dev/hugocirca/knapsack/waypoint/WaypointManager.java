@@ -185,11 +185,8 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
 
         ItemStack clicked = event.getCurrentItem();
         if (clicked == null || clicked.getType() == Material.AIR) return;
-        if (clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) return;
-
         if (clicked.getType() == Material.GRAY_STAINED_GLASS_PANE) {
-            if (event.isShiftClick()) return;
-            // empty slot -> new waypoint via anvil
+            // Empty slot — create new waypoint via anvil
             player.closeInventory();
             openNewAnvil(player);
             return;
@@ -224,9 +221,9 @@ public class WaypointManager implements CommandExecutor, TabCompleter, Listener 
 
     @EventHandler
     public void onInventoryClickAny(InventoryClickEvent event) {
+        // Handled fully by onInventoryClick — keep for non-GUI titles only
         if (!event.getView().getTitle().equals(GUI_TITLE)) return;
-        // Cancel all clicks including number keys, shift clicks, etc.
-        event.setCancelled(true);
+        // Already cancelled in onInventoryClick; do not duplicate logic
     }
 
     private void openNewAnvil(Player player) {

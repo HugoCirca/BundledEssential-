@@ -465,7 +465,8 @@ public class SpawnerManager implements Listener, Saveable {
         for (Block block : new ArrayList<>(event.blockList())) {
             String key = locKey(block);
             if (spawners().has(key)) {
-                removeSpawner(key);
+                // Make custom spawners blast-resistant: remove from explosion list, keep data/hologram
+                event.blockList().remove(block);
             }
         }
     }
@@ -475,7 +476,7 @@ public class SpawnerManager implements Listener, Saveable {
         for (Block block : new ArrayList<>(event.blockList())) {
             String key = locKey(block);
             if (spawners().has(key)) {
-                removeSpawner(key);
+                event.blockList().remove(block);
             }
         }
     }

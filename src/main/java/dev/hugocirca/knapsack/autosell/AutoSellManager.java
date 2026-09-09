@@ -409,12 +409,22 @@ public class AutoSellManager implements Listener, CommandExecutor, Saveable {
         if (!isChestItem(plugin, hand)) {
             return;
         }
+        Block placed = event.getBlockPlaced();
+        // Prevent double-chest steal: block placing next to any chest
+        for (org.bukkit.block.BlockFace face : new org.bukkit.block.BlockFace[]{org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.EAST, org.bukkit.block.BlockFace.WEST}) {
+            Block adj = placed.getRelative(face);
+            if (adj.getType() == Material.CHEST || adj.getType() == Material.TRAPPED_CHEST) {
+                event.setCancelled(true);
+                event.getPlayer().sendMessage("§cDon't place AutoSell next to another chest — it would form a double chest and steal items. Place it with one block gap.");
+                return;
+            }
+        }
         UUID chestId = idOf(plugin, hand);
         if (chestId == null) {
             chestId = UUID.randomUUID();
         }
         ensureEntry(chestId, event.getPlayer().getUniqueId());
-        locate(event.getBlockPlaced(), chestId);
+        locate(placed, chestId);
         JsonObject e = chests().getAsJsonObject(chestId.toString());
         e.addProperty("lastSell", System.currentTimeMillis());
         saveAll();
@@ -791,6 +801,17 @@ public class AutoSellManager implements Listener, CommandExecutor, Saveable {
             if (!(state instanceof Chest chest)) {
                 continue;
             }
+            // Double-chest guard: don't sell from merged 54-slot inventories (would steal neighbor chest)
+            try {
+                if (chest.getInventory().getSize() != 27) continue;
+                if (chest.getInventory() instanceof org.bukkit.inventory.DoubleChestInventory) continue;
+            } catch (Exception ignored) {}
+            // Also check adjacent blocks for chest (covers unloaded neighbour edge case)
+            boolean adjacentChest = false;
+            for (org.bukkit.block.BlockFace face : new org.bukkit.block.BlockFace[]{org.bukkit.block.BlockFace.NORTH, org.bukkit.block.BlockFace.SOUTH, org.bukkit.block.BlockFace.EAST, org.bukkit.block.BlockFace.WEST}) {
+                if (block.getRelative(face).getType() == Material.CHEST || block.getRelative(face).getType() == Material.TRAPPED_CHEST) { adjacentChest = true; break; }
+            }
+            if (adjacentChest) continue;
             List<UUID> recipients = recipientList(e);
             if (recipients.isEmpty()) {
                 try {

@@ -63,24 +63,27 @@ public class WaterBucketStackManager implements Listener {
         }
 
         // shift-click: allow stacking up to 16 when moving from player inv to chest etc.
-        // We let vanilla handle but afterwards compact stacks
+        // We let vanilla handle but afterwards compact stacks — only compact real inventories, not custom GUIs (prevents filler/reorder dupe)
         if (e.getClick().isShiftClick() && isWater(current)) {
-            // schedule compact after vanilla move
             if (e.getWhoClicked() instanceof Player p) {
                 plugin().getServer().getScheduler().runTask(plugin(), () -> compact(p.getInventory()));
-                // also compact top inventory if it contains water buckets
                 Inventory top = e.getView().getTopInventory();
-                plugin().getServer().getScheduler().runTask(plugin(), () -> compact(top));
+                if (top.getHolder() != null) {
+                    plugin().getServer().getScheduler().runTask(plugin(), () -> compact(top));
+                }
             }
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onDrag(InventoryDragEvent e) {
-        // compact after drag
+        // compact after drag — only player inventory + real block inventories, not custom GUIs
         Inventory inv = e.getInventory();
         if (e.getWhoClicked() instanceof Player p) {
-            plugin().getServer().getScheduler().runTask(plugin(), () -> { compact(p.getInventory()); compact(inv); });
+            plugin().getServer().getScheduler().runTask(plugin(), () -> {
+                compact(p.getInventory());
+                if (inv.getHolder() != null) compact(inv);
+            });
         }
     }
 
@@ -119,6 +122,8 @@ public class WaterBucketStackManager implements Listener {
 
     private void compact(Inventory inv) {
         if (inv == null) return;
+        // Never compact custom GUIs (holder == null -> Bukkit.createInventory(null,...)) — prevents filler slot dupes
+        try { if (inv.getHolder() == null) return; } catch (Exception ignored) { return; }
         // collect all water bucket amounts
         int total = 0;
         for (ItemStack s : inv.getContents()) if (isWater(s)) total += s.getAmount();

@@ -273,10 +273,16 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
         if (!event.getView().getTopInventory().equals(trade.inv)) return;
 
         // Only own offer slots may be modified, and only with plain clicks.
-        // Shift-click, number keys and double-click collect could pull from the other side.
+        // Block shift, hotbar swap, collect, etc. in player inventory while trade is open
         if (event.getRawSlot() >= trade.inv.getSize()) {
             if (event.getAction().name().contains("MOVE_TO_OTHER_INVENTORY")
-                    || event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
+                    || event.getAction() == InventoryAction.COLLECT_TO_CURSOR
+                    || event.getAction() == InventoryAction.HOTBAR_SWAP
+                    || event.getAction() == InventoryAction.HOTBAR_MOVE_AND_READD
+                    || event.getClick() == org.bukkit.event.inventory.ClickType.NUMBER_KEY
+                    || event.getClick() == org.bukkit.event.inventory.ClickType.SWAP_OFFHAND
+                    || event.getClick() == org.bukkit.event.inventory.ClickType.DROP
+                    || event.getClick() == org.bukkit.event.inventory.ClickType.CONTROL_DROP) {
                 event.setCancelled(true);
             }
             return;
@@ -343,8 +349,14 @@ public class TradeManager implements CommandExecutor, TabCompleter, Listener {
         Trade trade = activeTrades.get(player.getUniqueId());
         if (trade == null || trade.finished) return;
         if (!event.getInventory().equals(trade.inv)) return;
-        // Grace: ignore closes within 2s of creation (bot sync / double-open race)
-        if (System.currentTimeMillis() - trade.createdAt < 2000) return;
+        // Return cursor item that was picked from trade slots (prevents cursor dupe/loss)
+        ItemStack cursor = event.getView().getCursor();
+        if (cursor != null && cursor.getType() != Material.AIR) {
+            // Cursor item originated from this player's side — return to them directly
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(cursor.clone());
+            for (ItemStack rest : leftover.values()) player.getWorld().dropItemNaturally(player.getLocation(), rest);
+            event.getView().setCursor(null);
+        }
         cancelTrade(trade, "§cTrade closed — items returned.");
     }
 
